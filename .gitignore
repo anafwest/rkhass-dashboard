@@ -18,3 +18,5 @@ scraper_log-alriyadh-*.txt
 stages_output.txt
 deploy_guide.md
 data.files/
+.streamlit/secrets.toml
+data.htm
