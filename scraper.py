@@ -1,5 +1,5 @@
 import pandas as pd
-import time, os, json, glob, shutil
+import time, os, json, glob, shutil, subprocess
 from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -179,6 +179,25 @@ try:
                 else:
                     shutil.copy2(latest, os.path.join(PROJECT_DIR, "data.xls"))
                     save("تم حفظ data.xls")
+
+                save("=== رفع البيانات تلقائياً إلى GitHub ===")
+                try:
+                    os.chdir(PROJECT_DIR)
+                    subprocess.run(["git", "add", "-A"], check=True, capture_output=True)
+                    commit_msg = f"تحديث البيانات التلقائي - {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+                    result = subprocess.run(["git", "commit", "-m", commit_msg], capture_output=True, text=True)
+                    if result.returncode == 0:
+                        save("تم حفظ التغييرات في Git")
+                        push_result = subprocess.run(["git", "push", "origin", "main"], capture_output=True, text=True, timeout=60)
+                        if push_result.returncode == 0:
+                            save("تم رفع البيانات إلى GitHub بنجاح - Streamlit Cloud سيتحدث تلقائياً")
+                        else:
+                            save(f"خطأ في الرفع: {push_result.stderr[:200]}")
+                    else:
+                        save("لا توجد تغييرات جديدة للرفع")
+                except Exception as e:
+                    save(f"خطأ في عملية Git: {e}")
+
                 break
             time.sleep(5)
     else:
