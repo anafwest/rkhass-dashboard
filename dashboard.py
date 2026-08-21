@@ -359,9 +359,8 @@ new_pct = round(new / total * 100, 1) if total else 0
 
 avg_duration = 0
 if "مدة الإنجاز (أيام)" in df_f.columns:
-    valid_dur = df_f["مدة الإنجاز (أيام)"].dropna()
-    valid_dur = valid_dur[valid_dur > 0]
-    avg_duration = int(valid_dur.mean()) if len(valid_dur) > 0 else 0
+    total_duration = df_f["مدة الإنجاز (أيام)"].dropna().sum()
+    avg_duration = int(total_duration / total) if total > 0 else 0
 
 st.markdown(f"""
 <div class="header-bar">
