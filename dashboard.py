@@ -9,7 +9,7 @@ import os
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 os.chdir(PROJECT_DIR)
 
-st.set_page_config(page_title="داشبورد رخص البناء", page_icon="🏗️", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="مؤشر أداء رخص البناء", page_icon="🏗️", layout="wide", initial_sidebar_state="collapsed")
 
 st.markdown("""
 <style>
@@ -366,7 +366,7 @@ if "مدة الإنجاز (أيام)" in df_f.columns:
 st.markdown(f"""
 <div class="header-bar">
     <div>
-        <h1>🏗️ داشبورد مؤشرات أداء رخص البناء</h1>
+        <h1>🏗️ مؤشر أداء رخص البناء</h1>
         <p class="sub">أمانة منطقة الرياض — قطاع الغرب | آخر تحديث: {datetime.now().strftime('%Y-%m-%d %H:%M')} | {'📁 مستند مرفوع' if st.session_state.data_source == 'uploaded' else '📀 ملف افتراضي'} | إجمالي البيانات: {len(df):,} سجل</p>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
