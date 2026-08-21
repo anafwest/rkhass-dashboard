@@ -1,6 +1,8 @@
 import pandas as pd
-import time, os, json, glob, shutil, subprocess
+import time, os, json, glob, shutil, subprocess, smtplib
 from datetime import datetime
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -13,6 +15,8 @@ PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 CHROME_PROFILE_DIR = os.path.join(PROJECT_DIR, "chrome_profile")
 os.chdir(PROJECT_DIR)
 
+ALERT_EMAIL = "anaf@alriyadh.gov.sa"
+
 def save(msg):
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     line = f"[{ts}] {msg}"
@@ -20,11 +24,25 @@ def save(msg):
         f.write(line + "\n")
     print(line)
 
+def send_alert(subject, body):
+    try:
+        msg = MIMEMultipart()
+        msg["From"] = ALERT_EMAIL
+        msg["To"] = ALERT_EMAIL
+        msg["Subject"] = f"[مؤشر أداء رخص البناء] {subject}"
+        msg.attach(MIMEText(body, "plain", "utf-8"))
+        with smtplib.SMTP("localhost", 25) as server:
+            server.sendmail(ALERT_EMAIL, ALERT_EMAIL, msg.as_string())
+        save(f"تم إرسال تنبيه إلى {ALERT_EMAIL}")
+    except Exception as e:
+        save(f"تعذر إرسال الإيميل: {e}")
+
 save("=" * 60)
 save("بدء عملية سحب البيانات - تشغيل تلقائي")
 
 PORTAL_URL = "https://app.alriyadh.gov.sa/SSO/faces/home"
 MAX_WAIT = 120
+success = False
 
 try:
     service = Service(ChromeDriverManager().install())
@@ -41,6 +59,7 @@ try:
     driver = webdriver.Chrome(service=service, options=opts)
 except Exception as e:
     save(f"FATAL: {e}")
+    send_alert("فشل تشغيل Chrome", f"لم يتم تشغيل المتصفح:\n{e}")
     os._exit(1)
 
 try:
@@ -63,8 +82,11 @@ try:
                 save(f"تم تسجيل الدخول تلقائياً: {driver.current_url[:150]}")
                 break
         else:
-            save("انتهت مهلة انتظار تسجيل الدخول. تخطي...")
+            save("انتهت مهلة انتظار تسجيل الدخول.")
+            send_alert("فشل تسجيل الدخول", "انتهت مهلة 120 ثانية ولم يتم تسجيل الدخول تلقائياً.\nيجب تجديد جلسة Chrome بتسجيل الدخول يدوياً.")
             driver.save_screenshot("login_timeout.png")
+            driver.quit()
+            os._exit(1)
 
     time.sleep(3)
     save(f"الرابط النهائي: {driver.current_url[:200]}")
@@ -191,17 +213,25 @@ try:
                         push_result = subprocess.run(["git", "push", "origin", "main"], capture_output=True, text=True, timeout=60)
                         if push_result.returncode == 0:
                             save("تم رفع البيانات إلى GitHub بنجاح - Streamlit Cloud سيتحدث تلقائياً")
+                            success = True
                         else:
                             save(f"خطأ في الرفع: {push_result.stderr[:200]}")
+                            send_alert("فشل رفع البيانات", f"تم سحب البيانات لكن فشل الرفع إلى GitHub:\n{push_result.stderr[:300]}")
                     else:
                         save("لا توجد تغييرات جديدة للرفع")
+                        success = True
                 except Exception as e:
                     save(f"خطأ في عملية Git: {e}")
+                    send_alert("خطأ Git", f"خطأ أثناء عملية الرفع:\n{e}")
 
                 break
             time.sleep(5)
     else:
-        save("لم يتم التصدير تلقائياً. يُرجى التصدير يدوياً.")
+        save("لم يتم التصدير تلقائياً.")
+        send_alert("فشل التصدير", "لم يتم العثور على زر التصدير في البوابة.\nقد تكون واجهة البوابة تغيرت.")
+
+    if success:
+        save("✅ تمت العملية بنجاح")
 
 finally:
     try:
