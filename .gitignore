@@ -20,3 +20,4 @@ deploy_guide.md
 data.files/
 .streamlit/secrets.toml
 data.htm
+data.xls
