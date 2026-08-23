@@ -57,14 +57,8 @@ try:
     opts.add_argument("--ignore-certificate-errors")
     opts.add_argument("--ignore-ssl-errors")
     main_chrome = os.path.join(os.environ["LOCALAPPDATA"], "Google", "Chrome", "User Data")
-    if os.path.exists(main_chrome):
-        opts.add_argument(f"--user-data-dir={main_chrome}")
-        opts.add_argument("--profile-directory=Default")
-        save("استخدام ملف Chrome الرئيسي للحفاظ على الجلسة")
-    else:
-        opts.add_argument(f"--user-data-dir={CHROME_PROFILE_DIR}")
-        opts.add_argument("--profile-directory=Default")
-        save("استخدام ملف Chrome الخاص بالمشروع")
+    opts.add_argument(f"--user-data-dir={main_chrome}")
+    opts.add_argument("--profile-directory=Default")
     opts.add_experimental_option("prefs", {
         "download.default_directory": PROJECT_DIR,
         "download.prompt_for_download": False,
@@ -79,7 +73,7 @@ except Exception as e:
 try:
     save("فتح البوابة...")
     driver.get(PORTAL_URL)
-    time.sleep(5)
+    time.sleep(8)
 
     save(f"الرابط الحالي: {driver.current_url[:200]}")
     save(f"العنوان: {driver.title[:200]}")
@@ -88,21 +82,15 @@ try:
     on_login = "sso" in current or "login" in current or "auth" in current
 
     if on_login:
-        save("على صفحة تسجيل الدخول. انتظار تسجيل الدخول التلقائي (جلسة محفوظة)...")
-        for i in range(MAX_WAIT // 2):
-            time.sleep(2)
-            current = driver.current_url.lower()
-            if "sso" not in current and "login" not in current and "auth" not in current:
-                save(f"تم تسجيل الدخول تلقائياً: {driver.current_url[:150]}")
-                break
-        else:
-            save("انتهت مهلة انتظار تسجيل الدخول.")
-            send_alert("فشل تسجيل الدخول", "انتهت مهلة 120 ثانية ولم يتم تسجيل الدخول تلقائياً.\nيجب تجديد جلسة Chrome بتسجيل الدخول يدوياً.")
-            driver.save_screenshot("login_timeout.png")
+        save("في صفحة تسجيل الدخول. انتظار 30 ثانية...")
+        time.sleep(30)
+        current = driver.current_url.lower()
+        if "sso" in current or "login" in current:
+            save("لا يزال في صفحة الدخول.")
+            send_alert("صفحة تسجيل الدخول", "البوابة تتطلب تسجيل دخول يدوياً.")
             driver.quit()
             os._exit(1)
 
-    time.sleep(3)
     save(f"الرابط النهائي: {driver.current_url[:200]}")
     save(f"العنوان النهائي: {driver.title[:200]}")
 
