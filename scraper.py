@@ -56,8 +56,15 @@ try:
     opts.add_argument("--disable-blink-features=AutomationControlled")
     opts.add_argument("--ignore-certificate-errors")
     opts.add_argument("--ignore-ssl-errors")
-    opts.add_argument(f"--user-data-dir={CHROME_PROFILE_DIR}")
-    opts.add_argument("--profile-directory=Default")
+    main_chrome = os.path.join(os.environ["LOCALAPPDATA"], "Google", "Chrome", "User Data")
+    if os.path.exists(main_chrome):
+        opts.add_argument(f"--user-data-dir={main_chrome}")
+        opts.add_argument("--profile-directory=Default")
+        save("استخدام ملف Chrome الرئيسي للحفاظ على الجلسة")
+    else:
+        opts.add_argument(f"--user-data-dir={CHROME_PROFILE_DIR}")
+        opts.add_argument("--profile-directory=Default")
+        save("استخدام ملف Chrome الخاص بالمشروع")
     opts.add_experimental_option("prefs", {
         "download.default_directory": PROJECT_DIR,
         "download.prompt_for_download": False,
