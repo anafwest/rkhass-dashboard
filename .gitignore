@@ -12,3 +12,17 @@ data.htm
 data.xls
 chrome_profile/
 TempChromeProfile/
+ScraperProfile/
+auth_page.html
+cookies.txt
+explore.py
+found_page.html
+login_api.html
+login_api2.html
+login_headers.txt
+login_headers2.txt
+process_file.py
+report.html
+scrape_now.py
+test_cdp.py
+scraper_log.txt
