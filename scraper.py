@@ -1,15 +1,21 @@
+import ssl, os, urllib3
+urllib3.disable_warnings()
+os.environ["REQUESTS_CA_BUNDLE"] = ""
+os.environ["CURL_CA_BUNDLE"] = ""
+os.environ["PYTHONHTTPSVERIFY"] = "0"
+ssl._create_default_https_context = ssl._create_unverified_context
+
 import pandas as pd
-import time, os, json, glob, shutil, subprocess, smtplib
+import time, json, glob, shutil, subprocess, smtplib
 from datetime import datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException, WebDriverException
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 CHROME_PROFILE_DIR = os.path.join(PROJECT_DIR, "chrome_profile")
@@ -45,10 +51,11 @@ MAX_WAIT = 120
 success = False
 
 try:
-    service = Service(ChromeDriverManager().install())
-    opts = webdriver.ChromeOptions()
+    opts = Options()
     opts.add_argument("--start-maximized")
     opts.add_argument("--disable-blink-features=AutomationControlled")
+    opts.add_argument("--ignore-certificate-errors")
+    opts.add_argument("--ignore-ssl-errors")
     opts.add_argument(f"--user-data-dir={CHROME_PROFILE_DIR}")
     opts.add_argument("--profile-directory=Default")
     opts.add_experimental_option("prefs", {
@@ -56,7 +63,7 @@ try:
         "download.prompt_for_download": False,
         "download.directory_upgrade": True,
     })
-    driver = webdriver.Chrome(service=service, options=opts)
+    driver = webdriver.Chrome(options=opts)
 except Exception as e:
     save(f"FATAL: {e}")
     send_alert("فشل تشغيل Chrome", f"لم يتم تشغيل المتصفح:\n{e}")
@@ -231,7 +238,7 @@ try:
         send_alert("فشل التصدير", "لم يتم العثور على زر التصدير في البوابة.\nقد تكون واجهة البوابة تغيرت.")
 
     if success:
-        save("✅ تمت العملية بنجاح")
+        save("تمت العملية بنجاح")
 
 finally:
     try:
