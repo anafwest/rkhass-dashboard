@@ -363,14 +363,17 @@ if "مدة الإنجاز (أيام)" in df_f.columns:
     total_duration = df_f["مدة الإنجاز (أيام)"].dropna().sum()
     avg_duration = int(total_duration / total) if total > 0 else 0
 
+data_file = "data.xlsx" if os.path.exists("data.xlsx") else "data.xls"
+data_mtime = datetime.fromtimestamp(os.path.getmtime(data_file)).strftime('%Y-%m-%d %H:%M') if os.path.exists(data_file) else "غير معروف"
+
 st.markdown(f"""
 <div class="header-bar">
     <div>
         <h1>🏗️ مؤشر أداء رخص البناء</h1>
-        <p class="sub">أمانة منطقة الرياض — قطاع الغرب | آخر تحديث: {datetime.now().strftime('%Y-%m-%d %H:%M')} | {'📁 مستند مرفوع' if st.session_state.data_source == 'uploaded' else '📀 ملف افتراضي'} | إجمالي البيانات: {len(df):,} سجل</p>
+        <p class="sub">أمانة منطقة الرياض — قطاع الغرب | آخر تحديث للبيانات: {data_mtime} | إجمالي البيانات: {len(df):,} سجل</p>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
-        <span class="badge">{'📤 مرفوع' if st.session_state.data_source == 'uploaded' else '📀 افتراضي'}</span>
+        <span class="badge" style="background:rgba(34,197,94,0.2);color:#22c55e;border:1px solid rgba(34,197,94,0.3)">✅ محدث — {data_mtime}</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
