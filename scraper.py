@@ -96,20 +96,26 @@ READ_DATA_JS = """(function(){
     return JSON.stringify({rows:rows,total:total,pages:pages,page:page,perPage:perPage});
 })()"""
 
-NEXT_PAGE_JS = """(function(){
-    var text = document.body.innerText;
-    var m = text.match(/([\\d,]+)\\s*\\n*\\s*من\\s+([\\d,]+)/);
-    if(!m) return JSON.stringify({error:'no page info'});
-    var cur = parseInt(m[1].replace(/,/g,''));
-    var links = document.querySelectorAll('a');
-    for(var i=0;i<links.length;i++){
-        if(links[i].innerText.trim() === String(cur+1)){
-            links[i].click();
-            return JSON.stringify({ok:true,nextPage:cur+1});
-        }
-    }
-    return JSON.stringify({error:'link not found for '+(cur+1)});
-})()"""
+def next_page_js(target):
+    return f"""(function(){{
+        var target = {target};
+        var anchors = document.querySelectorAll('a');
+        for(var i=0; i<anchors.length; i++){{
+            var t = anchors[i].innerText.trim();
+            if(t === String(target) && anchors[i].id && anchors[i].id.indexOf('nb_pg') >= 0){{
+                anchors[i].click();
+                return JSON.stringify({{ok:true, next:target}});
+            }}
+        }}
+        for(var i=0; i<anchors.length; i++){{
+            var t = anchors[i].innerText.trim();
+            if(t === String(target) && anchors[i].href && anchors[i].href.indexOf('void') >= 0){{
+                anchors[i].click();
+                return JSON.stringify({{ok:true, next:target}});
+            }}
+        }}
+        return JSON.stringify({{error:'link for page '+target+' not found'}});
+    }})()"""
 
 EXPORT_JS = """(function(){
     var btn = document.getElementById('pt1:cBodFDC:r1:0:masteraTable:b11');
@@ -266,12 +272,13 @@ streak = 0
 log(f"جمع: صفحة 1/{pages} ({len(all_rows)} صف)")
 
 while page_num < pages:
-    r = json.loads(js(send, NEXT_PAGE_JS))
+    next_page = page_num + 1
+    r = json.loads(js(send, next_page_js(next_page)))
     if "error" in r:
         streak += 1
         if streak > 5: log(f"توقف: 5 أخطاء"); break
         time.sleep(3); continue
-    time.sleep(1.5)
+    time.sleep(2)
     info = json.loads(js(send, READ_DATA_JS))
     rows = info.get("rows",[])
     if not rows:
