@@ -1,0 +1,1905 @@
+<html class="p_AFMaximized fa-events-icons-ready" dir="rtl" lang="ar"><head><title>بوابة الدخول الموحد</title><script type="text/javascript" src="/SSO/ruxitagentjs_ICA7NQVfhqrux_10329260206100503.js" data-dtconfig="app=86448c6d12566186|owasp=1|featureHash=ICA7NQVfhqrux|msl=153600|srsr=30000|rdnt=1|uxrgce=1|cuc=wfaudb21|srms=2,1,0,0%2Ftextarea%2Cinput%2Cselect%2Coption;0%2Fdatalist;0%2Fform%20button;0%2F%5Bdata-dtrum-input%5D;0%2F.data-dtrum-input;1%2F%5Edata%28%28%5C-.%2B%24%29%7C%24%29|mel=100000|dpvc=1|md=mdcc1=a#navbarSupportedContent ^rb ul ^rb li.caption-content.show-data ^rb div ^rb div ^rb div.data-scrollbar ^rb div.scroll-content ^rb div ^rb div.profile-header ^rb div.cover-container ^rb div ^rb div ^rb h3|lastModification=1782216054070|tp=500,50,0|srbbv=2|agentUri=/SSO/ruxitagentjs_ICA7NQVfhqrux_10329260206100503.js|reportUrl=/SSO/rb_872aad1d-7829-467b-be88-2c52ddc79832|rid=RID_-1086602726|rpid=-680381225|domain=alriyadh.gov.sa"></script><link data-afr-stylesheet="true" rel="stylesheet" charset="UTF-8" type="text/css" href="/SSO/adf/styles/cache/myStyle-desktop-9cae9z--d-webkit-537-d-rtl-d--s-n-u.css"><link rel="icon" type="image/png" href="/SSO/adf/assets/images/favicon.png"><script>if(window.history && window.history.replaceState) window.history.replaceState(null, null, document.location.href.replace(/_afrLoop=[^&^#]*&*|_afrWindowMode=[^&^#]*&*|Adf-Window-Id=[^&^#]*&*|_afrPage=[^&^#]*&*|_afrRedirect=[^&^#]*&*|Adf-Page-Id=[^&^#]*&*|_afrMT=[^&^#]*&*|_afrFS=[^&^#]*&*|_afrMFW=[^&^#]*&*|_afrMFH=[^&^#]*&*|_afrMFDH=[^&^#]*&*|_afrMFDW=[^&^#]*&*|_afrMFC=[^&^#]*&*|_afrMFCI=[^&^#]*&*|_afrMFM=[^&^#]*&*|_afrMFR=[^&^#]*&*|_afrMFG=[^&^#]*&*|_afrMFS=[^&^#]*&*|_afrMFO=[^&^#]*&*|_afrTC=[^&^#]*&*|/g, '').replace(/[\?&]+$|[\?&]+(?=#)/, ''));</script><script type="text/javascript" src="/SSO/adf/jsLibs/Localepwuhh9.js"></script><script type="text/javascript" src="/SSO/afr/partition/webkit/n/default/opt/d/boot-nmkpup.js"></script><script type="text/javascript"></script><script type="text/javascript">AdfLogger.DEFAULT_LEVEL=AdfLogger.OFF;var checkAgentSupport = false;AdfAgent.setInstance(AdfAgent.getAgent(window));var lookAndFeel = new AdfDhtmlLookAndFeel(window);AdfAgent._LOG_WRITERS = "NativeLogWriter";AdfPage.setInstance(lookAndFeel.createPage());var page = AdfPage.PAGE;page.setBaseResourceUrl("/SSO");page.__setAutomationEnabled(false);page.__setCssSelectorsUncompressed(true);page.setAnimationEnabled(true);page.__setSessionIdentifier('8cna4nadt');page.__setOutputMode('default');page.__disableDirtyDataRetainPPR();page.setPageProperty("_afrProtectedSearch",false);</script><script type="text/javascript" src="/SSO/afr/partition/webkit/n/default/opt/d/core-d0yor4.js"></script><script type="text/javascript" src="/SSO/afr/AdfTranslations-f9vey1_ar.js?loc=ar&amp;skinId=myStyle.desktop"></script><script type="text/javascript" language="javascript" src="https://use.fontawesome.com/06815bb9d3.js"></script><link href="https://use.fontawesome.com/06815bb9d3.css" media="all" rel="stylesheet"><script type="text/javascript" language="javascript">
+            function onLoad() {
+               parseXmlJs();
+               RestDataFun();
+               //AdfPage.PAGE.addBusyStateListener(this, handleStateChange);
+            }
+            function openDatePick() {
+               $(".HijriDatePicker > input").calendarsPicker($.extend( {
+                   calendar : $.calendars.instance('ummalqura', 'ar')
+               },
+               $.calendarsPicker.regionalOptions['ar']));
+            }
+            
+            function RestDataFun() {
+                var element = document.getElementsByClassName('RestData')[0]; 
+                var len = element.getElementsByTagName('input').length;
+                for(var i = 0; len > i; i++){
+                    var input = element.getElementsByTagName('input')[i]; 
+                    input.setAttribute("autoComplete","new-password"); 
+                    input.setAttribute("readonly", "readonly");
+                    input.setAttribute("value", "");
+                    input.setAttribute("onfocus", "this.removeAttribute('readonly');"); 
+                    input.setAttribute("onfocusout", "this.setAttribute('readonly','readonly');"); 
+                }
+            }
+            
+            // function to open applaction 
+        function openApplication(evt) {
+            var appContext = evt.getSource().getProperty("applContext");
+            var authType = evt.getSource().getProperty("authenticationType");
+            var url = evt.getSource().getProperty("appUrl");
+            var appCode = evt.getSource().getProperty("applCode");
+            var refresh = evt.getSource().getProperty("refreshComponents");
+            var postScript = evt.getSource().getProperty("postActionScript");
+            AdfCustomEvent.queue(evt.getSource(), "openAppl", {applCode:appCode,applContext:appContext,appUrl:url,authenticationType: authType, refreshComponents:refresh, postActionScript:postScript}, false);
+            evt.cancel();
+        }
+		
+		 function openUrlTab(url) {
+               window.open(""+url+"", "_blank", "height=500,width=800,fullscreen=no,titlebar=no,location=no,toolbar=no,menubar=no,resizable=yes,scrollbars=yes");
+		}
+		function openTab(index, refresh, postScript) {  
+		   return function (evt) {
+			  AdfCustomEvent.queue(evt.getSource(), "openTab", {tabIndex:index, refreshComponents:refresh, postActionScript:postScript}, false);
+			  evt.cancel();
+		   }
+		}
+            
+            function searchMenusItems(inputId) {
+              var input, filter, ul, li, a, i, txtValue;
+              input = document.getElementById(inputId);
+              filter = input.value.toUpperCase();
+              ul = document.getElementById("MenuItems");
+              li = ul.getElementsByClassName('menuItem');
+            
+              for (i = 0; li.length > i; i++) {
+                a = li[i];
+                txtValue = a.textContent || a.innerText;
+                if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                  li[i].style.display = "";
+                } else {
+                  li[i].style.display = "none";
+                }
+              }
+            }
+            
+            function callAnyBtn(btnClassName){
+                document.getElementsByClassName(btnClassName)[0].click();
+            }
+          function callIdBtn(btnId){
+                document.getElementById(btnId).click();
+          }
+		  
+		  function addWatermarkBehavior(componentId, type, text){
+               if (type.indexOf('jsf_') == -1) {
+                   var sourceInput = AdfPage.PAGE.findComponent(componentId);
+                   var domElemement = AdfAgent.AGENT.getElementById(sourceInput.getClientId());
+                   var targetArray = domElemement.getElementsByTagName(type);
+                   targetArray[0].placeholder = text;
+               } else {
+                   type = type.substring(4);
+                   var input = document.getElementById(componentId);
+                   if (input) {
+                       input.placeholder = text;
+                   }
+                   var srcInput = AdfPage.PAGE.findComponent(componentId);
+                   if (srcInput) {
+                       targetArray[0].placeholder = text;
+                   }
+               }
+            }
+            function closeWindow(evt) {
+               window.close();
+            }
+            function openUrl(evt) {
+               var url = evt.getSource().getProperty("serviceUrl");
+               window.open(""+url+"", "_blank", "height=500,width=800,fullscreen=no,titlebar=no,location=no,toolbar=no,menubar=no,resizable=yes,scrollbars=yes");
+            }
+            function onblurEquality() {
+            }
+            function focusEquality() {
+            }
+            function keyupEquality() {
+            }
+            
+            handleStateChange = function (a1) {
+                if (a1.isBusy()) {
+                    showGlassPane();
+                } else {
+                    hideGlassPane();
+                }
+            }
+            function showGlassPane() {
+                AdfPage.PAGE.getGlassPane().style.cursor = 'wait';
+                AdfPage.PAGE.getGlassPane().style.visibility = "visible";
+                //AdfPage.PAGE.showGlassPane();
+            }
+            function hideGlassPane() {
+                //AdfPage.PAGE.hideGlassPane();
+                AdfPage.PAGE.getGlassPane().style.cursor = 'auto';
+                AdfPage.PAGE.getGlassPane().style.visibility = "hidden";
+            }
+            
+            // FOR SIDE NAVBAR
+            function openNav() {
+              document.getElementById("mySidenav").style.width = "350px";
+            }
+            function closeNav() {
+              document.getElementById("mySidenav").style.width = "0";
+            }
+        </script><style type="text/css" afrres="true">
+        .fingerPrint .card-header{
+                background: #e8ebea !important ;
+                border-radius: 7px 7px 0px 0px !important ;
+                border: 1px solid #ccc !important;
+                font-weight: bold; 
+                text-align: center;
+        }
+        
+        .fingerPrint .card-footer{
+                background: #e8ebea !important ;
+                border-radius: 0px 0px 7px 7px !important ;
+                border: 1px solid #ccc !important;
+                font-weight: bold; 
+                text-align: center;
+        }
+        .fingerPrint .card-body{
+                border: 1px solid #ccc !important;
+                padding: 5px !important;
+        }
+        
+        .empUpdate .card-header{
+                background: #e8ebea !important ;
+                border-radius: 7px 7px 0px 0px !important ;
+                border: 1px solid #ccc !important;
+                font-weight: bold; 
+                text-align: center;
+        }
+        
+        .empUpdate .card-footer{
+                background: #e8ebea !important ;
+                border-radius: 0px 0px 7px 7px !important ;
+                border: 1px solid #ccc !important;
+                font-weight: bold; 
+                text-align: center;
+        }
+        .empUpdate .card-body{
+                border: 1px solid #ccc !important;
+                padding: 5px !important;
+        }
+        .selector-for-some-widget {
+            box-sizing: content-box;
+        }
+        
+        .mainAreaSection{
+            background: #f3f6f9;
+            min-height: 900px;
+            margin-top: -16px;
+        }
+        
+        #SideBarMenu{
+            font-weight: bold;
+            font-size: 14px;
+            color: #ffffff;
+            margin: 0px 10px;
+        }
+        .sidenav {
+            height: 100% !important;
+            width: 0;
+            position: fixed;
+            z-index: 9999;
+            top: 0;
+            right: -5px !important;
+            background-color: #055f5d;
+            overflow-x: hidden;
+            transition: 0.5s;
+            padding-top: 60px;
+            text-align: right;
+            border-left: 2px solid #d5e4db;
+        }
+        
+        .sidenav a, .sidenav .af_link .af_link_text {
+            padding: 3px 8px 5px 32px !important;
+            text-decoration: none !important;
+            font-size: 16px !important;
+            /*color: #f9f9f9 !important;*/
+            display: block !important;
+            font-weight: bold !important;
+            transition: 0.3s !important;
+            text-align: right !important;
+        }
+        
+        .sidenav a, .sidenav .af_link .af_link_text:hover {
+            color: #ffd3d3 !important;
+        }
+        
+        .sidenav .sideMenuHead {
+            text-align: center !important;
+            border-bottom: 2px solid !important;
+            color: #ffffff !important;
+        }
+        
+        .sidenav .sideMenuBarGroup {
+            padding: 3px 8px 5px 32px !important;
+            text-decoration: none !important;
+            font-size: 14px !important;
+            color: #f9f9f9 !important;
+            font-weight: bold !important;
+            margin: 0px 10px !important;
+            min-width: 95% !important;
+        }
+        
+        .sidenav .sideMenuBarGroup .af_link {
+            font-size: 14px !important;
+            color: #f9f9f9 !important;
+            display: block !important;
+            font-weight: bold !important;
+            transition: 0.3s;
+            text-align: right !important;
+        }
+        
+        .sidenav .sideMenuBarGroup .af_link:hover {
+            color: #ffd3d3 !important;
+        }
+        
+        .sidenav a:hover {
+            color: #f1f1f1 !important;
+        }
+        
+        .sidenav .closebtn {
+            position: absolute;
+            top: 0px !important;
+            left: -20px !important;
+            font-size: 36px !important;
+            margin-right: 50px !important;
+            color: #f1f1f1 !important;
+        }
+        @media screen and (max-height:450px) {
+            .sidenav {
+                padding-top: 15px;
+            }
+            .sidenav a {
+                font-size: 18px;
+            }
+        }
+        /*END SIDENAV MENU STYLE*/
+        
+        /*Start CommonStyless #055f5d*/
+        .af_panelHeader_title-table0{
+            background-color: #689897 !important;
+        }
+        .af_panelHeader_title-table0{
+            height: 45px;
+            border-right:7px solid #07706d !important;
+            margin-bottom: 3px !important;
+        }
+        .af_panelHeader_title-text-cell{
+            min-width:250px !important;
+            max-width:100% !important;
+            padding-right:8px !important;
+            text-align: right;
+        }
+        .af_panelHeader_toolbar{
+            padding:0px 10px;
+        }
+        .af_panelHeader_toolbar .af_button{
+            min-height: 30px;
+            font-size: 13px;
+            background-color: #055f5d;
+            border: 1px solid #61a7a5;
+            margin-right: 0px;
+            padding-right: 0px;
+            padding-left: 0px;
+            border-radius: 5px;
+        }
+        .app_card:hover {
+                background-color:#08a76c !important;
+                color: #ffffff !important;
+        }
+        .app_card:hover, .app_card:hover * {
+                color: #ffffff !important;
+        }
+        .search-input{
+                border-radius:30px !important
+        }
+        .app_card:hover .bg-primary {
+            color: #08a76c !important;
+            background-color: #fff !important;
+        }
+        .app_card:hover .bg-primary i {
+          color: #08a76c !important;
+        }
+        /*End CommonStyless*/
+        </style><script type="text/javascript" language="javascript" src="/SSO/adf/assets/js/backend-bundle.min.js"></script><style type="text/css">.apexcharts-canvas {
+  position: relative;
+  user-select: none;
+  /* cannot give overflow: hidden as it will crop tooltips which overflow outside chart area */
+}
+
+/* scrollbar is not visible by default for legend, hence forcing the visibility */
+.apexcharts-canvas ::-webkit-scrollbar {
+  -webkit-appearance: none;
+  width: 6px;
+}
+.apexcharts-canvas ::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background-color: rgba(0,0,0,.5);
+  box-shadow: 0 0 1px rgba(255,255,255,.5);
+  -webkit-box-shadow: 0 0 1px rgba(255,255,255,.5);
+}
+.apexcharts-canvas.dark {
+  background: #343F57;
+}
+
+.apexcharts-inner {
+  position: relative;
+}
+
+.legend-mouseover-inactive {
+  transition: 0.15s ease all;
+  opacity: 0.20;
+}
+
+.apexcharts-series-collapsed {
+  opacity: 0;
+}
+
+.apexcharts-gridline, .apexcharts-text {
+  pointer-events: none;
+}
+
+.apexcharts-tooltip {
+  border-radius: 5px;
+  box-shadow: 2px 2px 6px -4px #999;
+  cursor: default;
+  font-size: 14px;
+  left: 62px;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  top: 20px;
+  overflow: hidden;
+  white-space: nowrap;
+  z-index: 12;
+  transition: 0.15s ease all;
+}
+.apexcharts-tooltip.light {
+  border: 1px solid #e3e3e3;
+  background: rgba(255, 255, 255, 0.96);
+}
+.apexcharts-tooltip.dark {
+  color: #fff;
+  background: rgba(30,30,30, 0.8);
+}
+.apexcharts-tooltip * {
+  font-family: inherit;
+}
+
+.apexcharts-tooltip .apexcharts-marker,
+.apexcharts-area-series .apexcharts-area,
+.apexcharts-line {
+  pointer-events: none;
+}
+
+.apexcharts-tooltip.active {
+  opacity: 1;
+  transition: 0.15s ease all;
+}
+
+.apexcharts-tooltip-title {
+  padding: 6px;
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+.apexcharts-tooltip.light .apexcharts-tooltip-title {
+  background: #ECEFF1;
+  border-bottom: 1px solid #ddd;
+}
+.apexcharts-tooltip.dark .apexcharts-tooltip-title {
+  background: rgba(0, 0, 0, 0.7);
+  border-bottom: 1px solid #333;
+}
+
+.apexcharts-tooltip-text-value,
+.apexcharts-tooltip-text-z-value {
+  display: inline-block;
+  font-weight: 600;
+  margin-left: 5px;
+}
+
+.apexcharts-tooltip-text-z-label:empty,
+.apexcharts-tooltip-text-z-value:empty {
+  display: none;
+}
+
+.apexcharts-tooltip-text-value,
+.apexcharts-tooltip-text-z-value {
+  font-weight: 600;
+}
+
+.apexcharts-tooltip-marker {
+  width: 12px;
+  height: 12px;
+  position: relative;
+  top: 0px;
+  margin-right: 10px;
+  border-radius: 50%;
+}
+
+.apexcharts-tooltip-series-group {
+  padding: 0 10px;
+  display: none;
+  text-align: left;
+  justify-content: left;
+  align-items: center;
+}
+
+.apexcharts-tooltip-series-group.active .apexcharts-tooltip-marker {
+  opacity: 1;
+}
+.apexcharts-tooltip-series-group.active, .apexcharts-tooltip-series-group:last-child {
+  padding-bottom: 4px;
+}
+.apexcharts-tooltip-series-group-hidden {
+  opacity: 0;
+  height: 0;
+  line-height: 0;
+  padding: 0 !important;
+}
+.apexcharts-tooltip-y-group {
+  padding: 6px 0 5px;
+}
+.apexcharts-tooltip-candlestick {
+  padding: 4px 8px;
+}
+.apexcharts-tooltip-candlestick > div {
+  margin: 4px 0;
+}
+.apexcharts-tooltip-candlestick span.value {
+  font-weight: bold;
+}
+
+.apexcharts-tooltip-rangebar {
+  padding: 5px 8px;
+}
+
+.apexcharts-tooltip-rangebar .category {
+  font-weight: 600;
+  color: #777;
+}
+
+.apexcharts-tooltip-rangebar .series-name {
+  font-weight: bold;
+  display: block;
+  margin-bottom: 5px;
+}
+
+.apexcharts-xaxistooltip {
+  opacity: 0;
+  padding: 9px 10px;
+  pointer-events: none;
+  color: #373d3f;
+  font-size: 13px;
+  text-align: center;
+  border-radius: 2px;
+  position: absolute;
+  z-index: 10;
+  background: #ECEFF1;
+  border: 1px solid #90A4AE;
+  transition: 0.15s ease all;
+}
+
+.apexcharts-xaxistooltip.dark {
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  color: #fff;
+}
+
+.apexcharts-xaxistooltip:after, .apexcharts-xaxistooltip:before {
+  left: 50%;
+  border: solid transparent;
+  content: " ";
+  height: 0;
+  width: 0;
+  position: absolute;
+  pointer-events: none;
+}
+
+.apexcharts-xaxistooltip:after {
+  border-color: rgba(236, 239, 241, 0);
+  border-width: 6px;
+  margin-left: -6px;
+}
+.apexcharts-xaxistooltip:before {
+  border-color: rgba(144, 164, 174, 0);
+  border-width: 7px;
+  margin-left: -7px;
+}
+
+.apexcharts-xaxistooltip-bottom:after, .apexcharts-xaxistooltip-bottom:before {
+  bottom: 100%;
+}
+
+.apexcharts-xaxistooltip-top:after, .apexcharts-xaxistooltip-top:before {
+  top: 100%;
+}
+
+.apexcharts-xaxistooltip-bottom:after {
+  border-bottom-color: #ECEFF1;
+}
+.apexcharts-xaxistooltip-bottom:before {
+  border-bottom-color: #90A4AE;
+}
+
+.apexcharts-xaxistooltip-bottom.dark:after {
+  border-bottom-color: rgba(0, 0, 0, 0.5);
+}
+.apexcharts-xaxistooltip-bottom.dark:before {
+  border-bottom-color: rgba(0, 0, 0, 0.5);
+}
+
+.apexcharts-xaxistooltip-top:after {
+  border-top-color:#ECEFF1
+}
+.apexcharts-xaxistooltip-top:before {
+  border-top-color: #90A4AE;
+}
+.apexcharts-xaxistooltip-top.dark:after {
+  border-top-color:rgba(0, 0, 0, 0.5);
+}
+.apexcharts-xaxistooltip-top.dark:before {
+  border-top-color: rgba(0, 0, 0, 0.5);
+}
+
+
+.apexcharts-xaxistooltip.active {
+  opacity: 1;
+  transition: 0.15s ease all;
+}
+
+.apexcharts-yaxistooltip {
+  opacity: 0;
+  padding: 4px 10px;
+  pointer-events: none;
+  color: #373d3f;
+  font-size: 13px;
+  text-align: center;
+  border-radius: 2px;
+  position: absolute;
+  z-index: 10;
+  background: #ECEFF1;
+  border: 1px solid #90A4AE;
+}
+
+.apexcharts-yaxistooltip.dark {
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  color: #fff;
+}
+
+.apexcharts-yaxistooltip:after, .apexcharts-yaxistooltip:before {
+  top: 50%;
+  border: solid transparent;
+  content: " ";
+  height: 0;
+  width: 0;
+  position: absolute;
+  pointer-events: none;
+}
+.apexcharts-yaxistooltip:after {
+  border-color: rgba(236, 239, 241, 0);
+  border-width: 6px;
+  margin-top: -6px;
+}
+.apexcharts-yaxistooltip:before {
+  border-color: rgba(144, 164, 174, 0);
+  border-width: 7px;
+  margin-top: -7px;
+}
+
+.apexcharts-yaxistooltip-left:after, .apexcharts-yaxistooltip-left:before {
+  left: 100%;
+}
+
+.apexcharts-yaxistooltip-right:after, .apexcharts-yaxistooltip-right:before {
+  right: 100%;
+}
+
+.apexcharts-yaxistooltip-left:after {
+  border-left-color: #ECEFF1;
+}
+.apexcharts-yaxistooltip-left:before {
+  border-left-color: #90A4AE;
+}
+.apexcharts-yaxistooltip-left.dark:after {
+  border-left-color: rgba(0, 0, 0, 0.5);
+}
+.apexcharts-yaxistooltip-left.dark:before {
+  border-left-color: rgba(0, 0, 0, 0.5);
+}
+
+.apexcharts-yaxistooltip-right:after {
+  border-right-color: #ECEFF1;
+}
+.apexcharts-yaxistooltip-right:before {
+  border-right-color: #90A4AE;
+}
+.apexcharts-yaxistooltip-right.dark:after {
+  border-right-color: rgba(0, 0, 0, 0.5);
+}
+.apexcharts-yaxistooltip-right.dark:before {
+  border-right-color: rgba(0, 0, 0, 0.5);
+}
+
+.apexcharts-yaxistooltip.active {
+  opacity: 1;
+}
+.apexcharts-yaxistooltip-hidden {
+  display: none;
+}
+
+.apexcharts-xcrosshairs, .apexcharts-ycrosshairs {
+  pointer-events: none;
+  opacity: 0;
+  transition: 0.15s ease all;
+}
+
+.apexcharts-xcrosshairs.active, .apexcharts-ycrosshairs.active {
+  opacity: 1;
+  transition: 0.15s ease all;
+}
+
+.apexcharts-ycrosshairs-hidden {
+  opacity: 0;
+}
+
+.apexcharts-zoom-rect {
+  pointer-events: none;
+}
+.apexcharts-selection-rect {
+  cursor: move;
+}
+
+.svg_select_points, .svg_select_points_rot {
+  opacity: 0;
+  visibility: hidden;
+}
+.svg_select_points_l, .svg_select_points_r {
+  cursor: ew-resize;
+  opacity: 1;
+  visibility: visible;
+  fill: #888;
+}
+.apexcharts-canvas.zoomable .hovering-zoom {
+  cursor: crosshair
+}
+.apexcharts-canvas.zoomable .hovering-pan {
+  cursor: move
+}
+
+.apexcharts-xaxis,
+.apexcharts-yaxis {
+  pointer-events: none;
+}
+
+.apexcharts-zoom-icon,
+.apexcharts-zoom-in-icon,
+.apexcharts-zoom-out-icon,
+.apexcharts-reset-zoom-icon,
+.apexcharts-pan-icon,
+.apexcharts-selection-icon,
+.apexcharts-menu-icon,
+.apexcharts-toolbar-custom-icon {
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+  line-height: 24px;
+  color: #6E8192;
+  text-align: center;
+}
+
+
+.apexcharts-zoom-icon svg,
+.apexcharts-zoom-in-icon svg,
+.apexcharts-zoom-out-icon svg,
+.apexcharts-reset-zoom-icon svg,
+.apexcharts-menu-icon svg {
+  fill: #6E8192;
+}
+.apexcharts-selection-icon svg {
+  fill: #444;
+  transform: scale(0.76)
+}
+
+.dark .apexcharts-zoom-icon svg,
+.dark .apexcharts-zoom-in-icon svg,
+.dark .apexcharts-zoom-out-icon svg,
+.dark .apexcharts-reset-zoom-icon svg,
+.dark .apexcharts-pan-icon svg,
+.dark .apexcharts-selection-icon svg,
+.dark .apexcharts-menu-icon svg,
+.dark .apexcharts-toolbar-custom-icon svg{
+  fill: #f3f4f5;
+}
+
+.apexcharts-canvas .apexcharts-zoom-icon.selected svg,
+.apexcharts-canvas .apexcharts-selection-icon.selected svg,
+.apexcharts-canvas .apexcharts-reset-zoom-icon.selected svg {
+  fill: #008FFB;
+}
+.light .apexcharts-selection-icon:not(.selected):hover svg,
+.light .apexcharts-zoom-icon:not(.selected):hover svg,
+.light .apexcharts-zoom-in-icon:hover svg,
+.light .apexcharts-zoom-out-icon:hover svg,
+.light .apexcharts-reset-zoom-icon:hover svg,
+.light .apexcharts-menu-icon:hover svg {
+  fill: #333;
+}
+
+.apexcharts-selection-icon, .apexcharts-menu-icon {
+  position: relative;
+}
+.apexcharts-reset-zoom-icon {
+  margin-left: 5px;
+}
+.apexcharts-zoom-icon, .apexcharts-reset-zoom-icon, .apexcharts-menu-icon {
+  transform: scale(0.85);
+}
+
+.apexcharts-zoom-in-icon, .apexcharts-zoom-out-icon {
+  transform: scale(0.7)
+}
+
+.apexcharts-zoom-out-icon {
+  margin-right: 3px;
+}
+
+.apexcharts-pan-icon {
+  transform: scale(0.62);
+  position: relative;
+  left: 1px;
+  top: 0px;
+}
+.apexcharts-pan-icon svg {
+  fill: #fff;
+  stroke: #6E8192;
+  stroke-width: 2;
+}
+.apexcharts-pan-icon.selected svg {
+  stroke: #008FFB;
+}
+.apexcharts-pan-icon:not(.selected):hover svg {
+  stroke: #333;
+}
+
+.apexcharts-toolbar {
+  position: absolute;
+  z-index: 11;
+  top: 0px;
+  right: 3px;
+  max-width: 176px;
+  text-align: right;
+  border-radius: 3px;
+  padding: 0px 6px 2px 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.apexcharts-toolbar svg {
+  pointer-events: none;
+}
+
+.apexcharts-menu {
+  background: #fff;
+  position: absolute;
+  top: 100%;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  padding: 3px;
+  right: 10px;
+  opacity: 0;
+  min-width: 110px;
+  transition: 0.15s ease all;
+  pointer-events: none;
+}
+
+.apexcharts-menu.open {
+  opacity: 1;
+  pointer-events: all;
+  transition: 0.15s ease all;
+}
+
+.apexcharts-menu-item {
+  padding: 6px 7px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.light .apexcharts-menu-item:hover {
+  background: #eee;
+}
+.dark .apexcharts-menu {
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+}
+
+@media screen and (min-width: 768px) {
+  .apexcharts-toolbar {
+    /*opacity: 0;*/
+  }
+
+  .apexcharts-canvas:hover .apexcharts-toolbar {
+    opacity: 1;
+  }
+}
+
+.apexcharts-datalabel.hidden {
+  opacity: 0;
+}
+
+.apexcharts-pie-label,
+.apexcharts-datalabel, .apexcharts-datalabel-label, .apexcharts-datalabel-value {
+  cursor: default;
+  pointer-events: none;
+}
+
+.apexcharts-pie-label-delay {
+  opacity: 0;
+  animation-name: opaque;
+  animation-duration: 0.3s;
+  animation-fill-mode: forwards;
+  animation-timing-function: ease;
+}
+
+.apexcharts-canvas .hidden {
+  opacity: 0;
+}
+
+.apexcharts-hide .apexcharts-series-points {
+  opacity: 0;
+}
+
+.apexcharts-area-series .apexcharts-series-markers .apexcharts-marker.no-pointer-events,
+.apexcharts-line-series .apexcharts-series-markers .apexcharts-marker.no-pointer-events, .apexcharts-radar-series path, .apexcharts-radar-series polygon {
+  pointer-events: none;
+}
+
+/* markers */
+
+.apexcharts-marker {
+  transition: 0.15s ease all;
+}
+
+@keyframes opaque {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Resize generated styles */
+@keyframes resizeanim {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.resize-triggers {
+  animation: 1ms resizeanim;
+  visibility: hidden;
+  opacity: 0;
+}
+
+.resize-triggers, .resize-triggers > div, .contract-trigger:before {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+.resize-triggers > div {
+  background: #eee;
+  overflow: auto;
+}
+
+.contract-trigger:before {
+  width: 200%;
+  height: 200%;
+}
+</style><script type="text/javascript" language="javascript" src="/SSO/adf/assets/js/flex-tree.min.js"></script><script type="text/javascript" language="javascript" src="/SSO/adf/assets/js/tree.js"></script><script type="text/javascript" language="javascript" src="/SSO/adf/assets/js/table-treeview.js"></script><script type="text/javascript" language="javascript" src="/SSO/adf/assets/js/masonry.pkgd.min.js"></script><script type="text/javascript" language="javascript" src="/SSO/adf/assets/js/imagesloaded.pkgd.min.js"></script><script type="text/javascript" language="javascript" src="/SSO/adf/assets/js/mapbox-gl.js"></script><script type="text/javascript" language="javascript" src="/SSO/adf/assets/js/mapbox.js"></script><script type="text/javascript" language="javascript" src="/SSO/adf/assets/vendor/fullcalendar/core/main.js"></script><script type="text/javascript" language="javascript" src="/SSO/adf/assets/vendor/fullcalendar/daygrid/main.js"></script><script type="text/javascript" language="javascript" src="/SSO/adf/assets/vendor/fullcalendar/timegrid/main.js"></script><script type="text/javascript" language="javascript" src="/SSO/adf/assets/vendor/fullcalendar/list/main.js"></script><script type="text/javascript" language="javascript" src="/SSO/adf/assets/js/sweetalert.js"></script><script type="text/javascript" language="javascript" src="/SSO/adf/assets/js/vector-map-custom.js"></script><script type="text/javascript" language="javascript" src="/SSO/adf/assets/js/customizer.js"></script><script type="text/javascript" language="javascript" src="/SSO/adf/assets/js/chart-custom.js"></script><script type="text/javascript" language="javascript" src="/SSO/adf/assets/js/slider.js"></script><script type="text/javascript" language="javascript" src="/SSO/adf/assets/js/app.js"></script><style id="smooth-scrollbar-style">
+[data-scrollbar] {
+  display: block;
+  position: relative;
+}
+
+.scroll-content {
+  -webkit-transform: translate3d(0, 0, 0);
+          transform: translate3d(0, 0, 0);
+}
+
+.scrollbar-track {
+  position: absolute;
+  opacity: 0;
+  z-index: 1;
+  background: rgba(222, 222, 222, .75);
+  -webkit-user-select: none;
+     -moz-user-select: none;
+      -ms-user-select: none;
+          user-select: none;
+  -webkit-transition: opacity 0.5s 0.5s ease-out;
+          transition: opacity 0.5s 0.5s ease-out;
+}
+.scrollbar-track.show,
+.scrollbar-track:hover {
+  opacity: 1;
+  -webkit-transition-delay: 0s;
+          transition-delay: 0s;
+}
+
+.scrollbar-track-x {
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 8px;
+}
+.scrollbar-track-y {
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 100%;
+}
+.scrollbar-thumb {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  background: rgba(0, 0, 0, .5);
+  border-radius: 4px;
+}
+</style></head><body class="af_document p_AFMaximized" dir="rtl" lang="ar" style="cursor: auto;"><noscript>&#1578;&#1587;&#1578;&#1582;&#1583;&#1605; &#1607;&#1584;&#1607; &#1575;&#1604;&#1589;&#1601;&#1581;&#1577; &#1580;&#1575;&#1601;&#1575; &#1575;&#1587;&#1603;&#1585;&#1576;&#1578;&#1548; &#1608;&#1605;&#1606; &#1579;&#1605; &#1601;&#1607;&#1610; &#1578;&#1578;&#1591;&#1604;&#1576; &#1605;&#1578;&#1589;&#1601;&#1581;&#1611;&#1575; &#1605;&#1583;&#1593;&#1608;&#1605;&#1611;&#1575; &#1576;&#1580;&#1575;&#1601;&#1575; &#1575;&#1587;&#1603;&#1585;&#1576;&#1578;. &#1575;&#1604;&#1605;&#1578;&#1589;&#1601;&#1581; &#1604;&#1583;&#1610;&#1603; &#1594;&#1610;&#1585; &#1605;&#1583;&#1593;&#1608;&#1605; &#1576;&#1580;&#1575;&#1601;&#1575; &#1575;&#1587;&#1603;&#1585;&#1576;&#1578;.</noscript><iframe name="afr::PushIframe" id="afr::PushIframe" style="display:none" src="/SSO/afr/blank.html"></iframe><input type="hidden" id="oracle.adf.view.faces.RICH_UPDATE" value="dirty"><div id="d1"><a id="d1::skip" href="#" class="af_document_skip-link" style="display: none;">التخطي إلى المحتوى الرئيسي.</a><span id="afr::ATStatus" class="p_OraHiddenLabel" role="status" aria-live="polite" aria-atomic="true"></span>
+        <script>
+            function openSsoUrl(itemId,fURL) {
+                document.getElementById("GoApp"+itemId).setAttribute("href", fURL);        
+                document.getElementById("GoApp"+itemId).click();
+                document.getElementById("GoApp"+itemId).removeAttribute("href"); 
+            }
+        </script><form id="f1" name="f1" class="p_AFHoverTarget af_form" enctype="multipart/form-data" method="POST" action="/SSO/faces/home">
+    <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <meta http-equiv="Pragma" content="no-cache">
+        <meta http-equiv="Expires" content="-1">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Cairo+Play:300,400,500,700">
+        <link rel="shortcut icon" href="../adf/assets/images/favicon.png">
+        <link rel="stylesheet" href="../adf/assets/css/backend-plugin.min28b5.css?v=2.0.0">
+        <link rel="stylesheet" href="../adf/assets/css/backend28b5.css?v=2.0.0">
+        <link rel="stylesheet" href="../adf/css/all.min.css">
+        <link rel="stylesheet" href="../adf/css/line-awesome.min.css">
+        <link rel="stylesheet" href="../adf/css/remixicon.css">
+        <link rel="stylesheet" href="../adf/css/dripicons.css">
+        <link rel="stylesheet" href="../adf/assets/vendor/fullcalendar/core/main.css">
+        <link rel="stylesheet" href="../adf/assets/vendor/fullcalendar/daygrid/main.css">
+        <link rel="stylesheet" href="../adf/assets/vendor/fullcalendar/timegrid/main.css">
+        <link rel="stylesheet" href="../adf/assets/vendor/fullcalendar/list/main.css">
+        <link rel="stylesheet" href="../adf/assets/vendor/mapbox/mapbox-gl.css">
+    
+    <span id="pt1:j_idt5" class="login-body AFStretchWidth af_panelGroupLayout">false
+            <div id="loading" style="display: none;">
+                <div id="loading-center"></div>
+            </div>
+            
+            
+            <div class="wrapper">
+                <div class="iq-sidebar  rtl-iq-sidebar sidebar-default ">
+                    <div class="iq-sidebar-logo d-flex align-items-center justify-content-between">
+                        <a href="#" class="header-logo">
+                            <img src="../adf/assets/images/logo-white.png" class="img-fluid rounded-normal light-logo" alt="logo"><img src="../adf/assets/images/logo-white.png" class="img-fluid rounded-normal darkmode-logo d-none" alt="logo"></a>
+                        <div class="iq-menu-bt-sidebar">
+                            <i class="las la-bars wrapper-menu"></i>
+                        </div>
+                    </div>
+                    <div class="data-scrollbar" data-scroll="1" data-scrollbar="true" tabindex="-1" style="overflow: hidden; outline: none;"><div class="scroll-content">
+                        <nav class="iq-sidebar-menu">
+                            <ul id="iq-sidebar-toggle" class="iq-menu">
+                                <li class="active">
+                                    <a href="#Dashboards" class="collapsed" data-toggle="collapse" aria-expanded="true">
+                                        <i class="las la-home"></i><span class="spanTxt">الرئيسية</span><i class="las la-angle-left iq-arrow-right arrow-active"></i><i class="las la-angle-down iq-arrow-right arrow-hover"></i></a>
+                                    <ul id="Dashboards" class="iq-submenu collapse show" data-parent="#iq-sidebar-toggle">
+                                        <li class="active">
+                                            <a href="">
+                                                <i class="lab la-blogger-b"></i>القائمة الرئيسية</a>
+                                        </li>
+                                        <li class="active" style="display: block;"><a id="pt1:pt_l1" class="af_link p_AFTextOnly" style="display:none" data-afr-fcs="true" href="#" onclick="this.focus();return false" data-afr-tlen="0"><span id="pt1:pt_l1::text" class="af_link_text">
+                                                <i class="las la-star"></i>
+                                                المفضلة
+                                            </span></a>
+                                        </li>
+                                    </ul>
+                                </li>
+                                <li class=" ">
+                                    <a style="display: none;" href="#plugin" class="collapsed" data-toggle="collapse" aria-expanded="false">
+                                        <i class="las la-network-wired iq-arrow-left"></i><span class="spanTxt">الإضافات</span><i class="las la-angle-left iq-arrow-right arrow-active"></i><i class="las la-angle-down iq-arrow-right arrow-hover"></i></a>
+                                    <ul id="plugin" class="iq-submenu collapse" data-parent="#iq-sidebar-toggle">
+                                        <li class=" ">
+                                            <a href="">
+                                                <i class="las la-smile"></i><span class="spanTxt">التقييم</span></a>
+                                        </li>
+                                    </ul>
+                                </li>
+                                <li class=" ">
+                                    <a style="display: none;" href="#pages" class="collapsed" data-toggle="collapse" aria-expanded="false">
+                                        <i class="las la-book-reader iq-arrow-left"></i><span class="spanTxt">صفحات إضافية</span><i class="las la-angle-left iq-arrow-right arrow-active"></i><i class="las la-angle-down iq-arrow-right arrow-hover"></i></a>
+                                    <ul id="pages" class="iq-submenu collapse" data-parent="#iq-sidebar-toggle">
+                                        <li class=" ">
+                                            <a href="">
+                                                <i class="las la-drafting-compass"></i><span class="spanTxt">الاسئلة الشائعة</span></a>
+                                        </li>
+                                        <li class=" ">
+                                            <a href="">
+                                                <i class="las la-cubes"></i><span class="spanTxt">الدعم الفني</span></a>
+                                        </li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </nav>
+                        <div class="menu-bgg">
+                            <img src="../adf/assets/images/menu-bg.png" class="" alt="logo">
+                        </div>
+                        <div class="p-3"></div>
+                    </div><div class="scrollbar-track scrollbar-track-x" style="display: none;"><div class="scrollbar-thumb scrollbar-thumb-x" style="width: 260px; transform: translate3d(0px, 0px, 0px);"></div></div><div class="scrollbar-track scrollbar-track-y" style="display: none;"><div class="scrollbar-thumb scrollbar-thumb-y" style="height: 861px; transform: translate3d(0px, 0px, 0px);"></div></div></div>
+                </div>
+                <div class="iq-top-navbar rtl-iq-top-navbar ">
+                    <div class="iq-navbar-custom">
+                        <nav class="navbar navbar-expand-lg navbar-light p-0">
+                            <div class="iq-navbar-logo d-flex align-items-center justify-content-between">
+                                <i class="ri-menu-line wrapper-menu"></i>
+                                 
+                                <a href="#" class="header-logo">
+                                    <img src="../adf/assets/images/logo.png" class="img-fluid rounded-normal light-logo" alt="logo"><img src="../adf/assets/images/logo-white.png" class="img-fluid rounded-normal darkmode-logo" alt="logo"></a>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <div class="change-mode">
+                                    <div class="custom-control custom-switch custom-switch-icon custom-control-inline">
+                                        <div class="custom-switch-inner">
+                                            <p class="mb-0"></p>
+                                            <input type="checkbox" class="custom-control-input" id="dark-mode" data-active="true">
+                                             
+                                            <label class="custom-control-label" for="dark-mode" data-mode="toggle">
+                                                <span class="switch-icon-left">
+                                                    <i class="a-left ri-moon-clear-line"></i></span>
+                                                <span class="switch-icon-right">
+                                                    <i class="a-right ri-sun-line"></i></span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-label="Toggle navigation">
+                                    <i class="ri-menu-3-line"></i>
+                                </button>
+                                <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                                    <ul class="navbar-nav ml-auto navbar-list align-items-center">
+                                        <li class="nav-item nav-icon search-content">
+                                            <a href="#" class="search-toggle rounded" id="dropdownSearch" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                <i class="ri-search-line"></i></a>
+                                            <div class="iq-search-bar iq-sub-dropdown dropdown-menu" aria-labelledby="dropdownSearch">
+                                                <div action="#" class="searchbox p-2">
+                                                    <div class="form-group mb-0 position-relative">
+                                                        <input type="text" id="SearchInputId" onkeyup="searchMenusItems('SearchInputId')" class="text search-input font-size-12" placeholder="ابحث في النظام ...">
+                                                         
+                                                        <a href="#" class="search-link">
+                                                            <i class="las la-search"></i></a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </li>
+                                        <li class="nav-item nav-icon dropdown">
+                                           <a href="https://mail.alriyadh.gov.sa/owa" target="_blank" class="search-toggle dropdown-toggle" id="dropdownMenuButton2" aria-haspopup="true" aria-expanded="false" title="البريدالوارد">
+                                                <i class="ri-mail-line  bg-main-color p-2 rounded-small"></i><span class="bg-primary"></span></a>
+                                            <div class="iq-sub-dropdown dropdown-menu" aria-labelledby="dropdownMenuButton2">
+                                                <div class="card shadow-none m-0">
+                                                    <div class="card-body p-0 ">
+                                                        <div class="cust-title p-3">
+                                                            <h5 class="mb-0">البريد الوارد</h5>
+                                                        </div>
+                                                        <div class="p-3"> 
+                                                           
+                                                        </div>
+                                                        <a class="right-ic btn btn-primary btn-block position-relative p-2" href="#" role="button">
+                                                            <div class="dd-icon">
+                                                                <i class="las la-arrow-left mr-0"></i>
+                                                            </div>
+                                                            جميع الرسائل</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </li>
+                                        <li class="nav-item nav-icon dropdown">
+                                        
+                                            <div class="iq-sub-dropdown dropdown-menu" aria-labelledby="dropdownMenuButton">
+                                                <div class="card shadow-none m-0">
+                                                    <div class="card-body p-0 ">
+                                                        <div class="cust-title p-3">
+                                                            <h5 class="mb-0">الاشعارات</h5>
+                                                        </div>
+                                                        <div class="p-3">
+                                                            
+                                                             
+                                                        </div>
+                                                        <a class="right-ic btn btn-primary btn-block position-relative p-2" href="#" role="button">
+                                                            <div class="dd-icon">
+                                                                <i class="las la-arrow-right mr-0"></i>
+                                                            </div>
+                                                            جميع الاشعارات</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </li>
+                                        <li class="nav-item iq-full-screen">
+                                            <a href="#" class="" id="btnFullscreen">
+                                                <i class="ri-fullscreen-line"></i></a>
+                                        </li>
+                                        <li class="caption-content">
+                                            <a href="#" class="iq-user-toggle"><img id="pt1:j_idt10" class="img-fluid rounded af_image" src="../img?location=/img/EMP/EMP_PIC/EMP_137741.png"></a>
+                                            <div class="iq-user-dropdown">
+                                                <div class="card">
+                                                    <div class="card-header d-flex justify-content-between align-items-center mb-0">
+                                                        <div class="header-title">
+                                                            <h4 class="card-title mb-0">الملف الشخصي</h4>
+                                                        </div>
+                                                        <div class="close-data text-right badge badge-primary cursor-pointer">
+                                                            <i class="ri-close-fill"></i>
+                                                        </div>
+                                                    </div>
+                                                    <div class="data-scrollbar" data-scroll="2" data-scrollbar="true" tabindex="-1" style="overflow: hidden; outline: none;"><div class="scroll-content">
+                                                        <div class="card-body">
+                                                            <div class="profile-header">
+                                                                <div class="cover-container ">
+                                                                    <div class="media align-items-center mb-4"><img id="pt1:j_idt13" class="rounded img-fluid avatar-80 af_image" src="../img?location=/img/EMP/EMP_PIC/EMP_137741.png">
+                                                                        <div class="media-body profile-detail ml-3 rtl-mr-3 rtl-ml-0">
+                                                                            <h3>
+                                                                                عبدالله علي عيسى نافع
+                                                                            </h3>
+                                                                            <div class="d-flex flex-wrap">
+                                                                                <p class="mb-1">
+                                                                                    مساعد إداري ممارس ثالث
+                                                                                </p>
+                                                                                <a href="#" onclick="callAnyBtn('log_outbt');" class=" ml-3 rtl-mr-3 rtl-ml-0">تسجيل
+                                                                                                                   خروج</a><a id="pt1:pt_Exit" class="log_outbt af_link p_AFTextOnly" style="display:none" data-afr-fcs="true" href="#" onclick="this.focus();return false"></a>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="row">
+                                                                    <div class="col-lg-6 col-md-6  col-6 pr-0">
+                                                                        <div class="profile-details text-center">
+                                                                            <a href="#" id="imgFileClick" onclick="callIdBtn('pt1:ifProfileId::content');" class="iq-sub-card bg-primary-light rounded-small p-2">
+                                                                                
+                                                                                <i class="fa fa-camera-retro fa-2x"></i><h6 class="mb-2 ">تغيير
+                                                                                                                                          الصورة
+                                                                              الشخصية</h6><span dir="rtl" id="pt1:ifProfileId" class="profile_input af_inputFile" style="display:none"><input id="pt1:ifProfileId::content" name="pt1:ifProfileId" class="af_inputFile_content" size="30" type="file"></span></a>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="col-lg-6  col-md-6 col-6">
+                                                                        <div class="profile-details text-center">
+                                                                            <a href="#" onclick="callAnyBtn('rest_User');" class="iq-sub-card bg-danger-light rounded-small p-2">
+                                                                                <div class="rounded iq-card-icon-small">
+                                                                                    <i class="ri-lock-line"></i>
+                                                                                </div>
+                                                                                <h6 class="mb-0 ">
+                                                                                    تغيير كلمة المرور 
+                                                                                </h6></a><div id="pt1:pt_l4" class="rest_User af_button p_AFTextOnly" style="display:none" _afrgrp="0" role="presentation"><a href="#" onclick="callAnyBtn('rest_User');" class="iq-sub-card bg-danger-light rounded-small p-2"></a><a href="#" onclick="this.focus();return false" data-afr-fcs="true" class="af_button_link" role="button"><span class="af_button_text">تغيير كلمة المرور </span></a></div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="personal-details">
+                                                                    <h5 class="card-title mb-3 mt-3">بيانات المستخدم</h5>
+                                                                    <div class="row align-items-center mb-2">
+                                                                        <div class="col-sm-5">
+                                                                            <h6>الاسم باللغة العربية:</h6>
+                                                                        </div>
+                                                                        <div class="col-sm-7">
+                                                                            <p class="mb-0">
+                                                                                عبدالله علي عيسى نافع
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="row align-items-center mb-2">
+                                                                        <div class="col-sm-5">
+                                                                            <h6>الاسم باللغة الانجليزية:</h6>
+                                                                        </div>
+                                                                        <div class="col-sm-7">
+                                                                            <p class="mb-0">
+                                                                                ABDULLAH        ALI             NAFEA          
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="row align-items-center mb-2">
+                                                                        <div class="col-sm-5">
+                                                                            <h6>المسمى الوظيفي:</h6>
+                                                                        </div>
+                                                                        <div class="col-sm-7">
+                                                                            <p class="mb-0">
+                                                                                مساعد إداري ممارس ثالث
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="row align-items-center mb-2">
+                                                                        <div class="col-sm-5">
+                                                                            <h6>هل تم التبصيم:</h6>
+                                                                        </div>
+                                                                        <div class="col-sm-7">
+                                                                            <p class="mb-0">
+                                                                                <i class="fas fa-check-square" style="font-weight:bold;font-size: 18px;" aria-hidden="true"></i>
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="row align-items-center mb-2">
+                                                                        <div class="col-sm-5">
+                                                                            <h6>تاريخ اول بصمة:</h6>
+                                                                        </div>
+                                                                        <div class="col-sm-7">
+                                                                            <p class="mb-0">
+                                                                                25-03-2014
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="row align-items-center mb-2">
+                                                                        <div class="col-sm-5">
+                                                                            <h6>تاريخ اخر بصمة:</h6>
+                                                                        </div>
+                                                                        <div class="col-sm-7">
+                                                                            <p class="mb-0">
+                                                                                10-07-2026
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="p-3"></div>
+                                                        </div>
+                                                    </div><div class="scrollbar-track scrollbar-track-x" style="display: none;"><div class="scrollbar-thumb scrollbar-thumb-x"></div></div><div class="scrollbar-track scrollbar-track-y" style="display: none;"><div class="scrollbar-thumb scrollbar-thumb-y"></div></div></div>
+                                                </div>
+                                            </div>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                </div>
+                <div class="content-page rtl-page">
+                    <div class="container-fluid">
+                        <div class="row">
+                            <div class="col-lg-12 mb-3 bg-body">
+                                <div class="d-flex align-items-center justify-content-between welcome-content">
+                                    
+                                     <div style="                                             font-family: 'Cairo Play';                                             font-weight: bold;                                             font-size: 30px;                                             line-height: 1;                                             text-align: right;                                             color: Black;" class="navbar-breadcrumb">
+بوابة الدخول الموحد لأنظمة الأمانة
+                                            </div>
+                                    
+                                </div>
+                            </div>
+                            <div class="col-sm-12">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div class="todo-notification d-flex align-items-center">
+                                                <nav class="iq-sidebar-menu">
+                                                    <ul class="iq-menu d-flex mn-center">
+                                                        <li class="breadcrumb-item"><a id="pt1:l1" class="af_link p_AFTextOnly" data-afr-fcs="true" href="#" onclick="this.focus();return false" data-afr-tlen="0"><span id="pt1:l1::text" class="af_link_text">
+                                                                <i class="las la-home" aria-hidden="true"></i>
+                                                                القائمة الرئيسية
+                                                                <i class="las la-angle-left iq-arrow-right arrow-active"></i></span></a>
+                                                        </li>
+                                                        <li class="breadcrumb-item disabled" style="display: none;"><a id="pt1:pt_l2" class="af_link p_AFDisabled p_AFTextOnly" data-afr-fcs="false" data-afr-tlen="0" aria-disabled="true"><span id="pt1:pt_l2::text" class="af_link_text">
+                                                                <i class="las la-book" aria-hidden="true"></i>
+                                                                
+                                                                <i class="las la-angle-left iq-arrow-right arrow-active"></i></span></a>
+                                                        </li>
+                                                        <li class="breadcrumb-item disabled" style="display: none;"><a id="pt1:pt_l3" class="af_link p_AFDisabled p_AFTextOnly" data-afr-fcs="false" data-afr-tlen="0" aria-disabled="true"><span id="pt1:pt_l3::text" class="af_link_text">
+                                                                <i class="las la-book" aria-hidden="true"></i>
+                                                                
+                                                                <i class="las la-angle-left iq-arrow-right arrow-active"></i></span></a>
+                                                        </li>
+                                                        <li class="breadcrumb-item disabled" style="display: none;" aria-current="page">
+                                                            <i class="las la-book" aria-hidden="true"></i>
+                                                             - 
+                                                            
+                                                        </li>
+                                                        <li class="breadcrumb-item disabled" style="visibility: hidden;" aria-current="page"><span id="pt1:pt_pgl1" class="af_panelGroupLayout">
+                                                                <a onclick="addPageToFavMenu()" aria-hidden="true" title="اضف الشاشة الى المفضلة">
+                                                                    <i class="fa fa-star-o"></i></a></span><span id="pt1:pt_pgl2" class="af_panelGroupLayout" style="display:none">
+                                                                <a onclick="removePageToFavMenu()" title="ازالة الشاشة من المفضلة" aria-hidden="true">
+                                                                    <i class="fa fa-star"></i></a></span><a id="pt1:fav" class="af_link p_AFTextOnly" style="display:none" data-afr-fcs="true" href="#" onclick="this.focus();return false"></a><a id="pt1:Unfav" class="af_link p_AFTextOnly" style="display:none" data-afr-fcs="true" href="#" onclick="this.focus();return false"></a>
+                                                        </li>
+                                                    </ul>
+                                                </nav>
+                                            </div>
+                                            <div class="iq-search-bar device-search">
+                                                <div action="#" class="searchbox">
+                                                    <a class="search-link" href="#">
+                                                        <i class="ri-search-line"></i></a>
+                                                     
+                                                    <input type="text" id="MainSearchItemId" onkeyup="searchMenusItems('MainSearchItemId')" class="text search-input" autocomplete="off" placeholder="ابحث في النظام ...">
+                                                </div>
+                                            </div>
+                                            <div class="todo-date d-flex mr-3 rtl-mr-0">
+                                                <i class="ri-calendar-2-line text-success mr-2 mt-1 rtl-ml-2 rtl-mr-0"></i>
+                                                 
+                                                
+                                                    الجمعة, 10 يوليو 2026
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-lg-12">
+                                <section class="text-center" style="padding-right: 0px"><span id="pt1:pgl7" class="af_panelGroupLayout"></span><span id="pt1:pgl1" class="af_panelGroupLayout"><span id="pt1:pgl1" class="af_panelGroupLayout">
+                        <div class="row" id="MenuItems">
+                                <div class="col-md-3 menuItem">
+                                    <a onclick="callAnyBtn('btn_FORM_APP')">
+                                        <div class="card card-block card-stretch app_card card-height rtl-mode activee ">
+                                            <div class="card-body">
+                                                <div class="top-block d-flex align-items-center justify-content-between mb-3">
+                                                    <h3 class="text-primary"></h3>
+                                                    <div class="bg-primary icon iq-icon-box-2 mr-2 rounded rtl-ml-2  rtl-mr-0">
+                                                        <i class="las la-project-diagram"></i>
+                                                    </div>
+                                                </div><div align="center" id="pt1:app0" class="af_panelGroupLayout"><div><button dir="rtl" id="pt1:MenuButtonFORM_APP" class="btn_FORM_APP af_commandButton p_AFTextOnly" style="display:none" onclick="this.focus();return false;" data-afr-fcs="true" title="الانظمة التطبيقية"></button></div></div>
+                                                 
+                                                <h4 class="app_card_txt">
+                                                    الانظمة التطبيقية
+                                                </h4>
+                                                <div class="iq-progress-bar mt-0">
+                                                    <span class="bg-second-color" data-percent="100" style="transition: width 2s; width: 100%;"></span>
+                                                </div>
+                                            </div>
+                                        </div></a>
+                                        <a id="GoAppFORM_APP" style="display: none" target="_blank"></a>
+                                </div>
+                                <div class="col-md-3 menuItem">
+                                    <a onclick="callAnyBtn('btn_ADF')">
+                                        <div class="card card-block card-stretch app_card card-height rtl-mode activee ">
+                                            <div class="card-body">
+                                                <div class="top-block d-flex align-items-center justify-content-between mb-3">
+                                                    <h3 class="text-primary"></h3>
+                                                    <div class="bg-primary icon iq-icon-box-2 mr-2 rounded rtl-ml-2  rtl-mr-0">
+                                                        <i class="las la-project-diagram"></i>
+                                                    </div>
+                                                </div><div align="center" id="pt1:app1" class="af_panelGroupLayout"><div><button dir="rtl" id="pt1:MenuButtonADF" class="btn_ADF af_commandButton p_AFTextOnly" style="display:none" onclick="this.focus();return false;" data-afr-fcs="true" title="بوابة الأنظمة الأساسية"></button></div></div>
+                                                 
+                                                <h4 class="app_card_txt">
+                                                    بوابة الأنظمة الأساسية
+                                                </h4>
+                                                <div class="iq-progress-bar mt-0">
+                                                    <span class="bg-second-color" data-percent="100" style="transition: width 2s; width: 100%;"></span>
+                                                </div>
+                                            </div>
+                                        </div></a>
+                                        <a id="GoAppADF" style="display: none" target="_blank"></a>
+                                </div>
+                                <div class="col-md-3 menuItem">
+                                    <a onclick="callAnyBtn('btn_GISSYS')">
+                                        <div class="card card-block card-stretch app_card card-height rtl-mode activee ">
+                                            <div class="card-body">
+                                                <div class="top-block d-flex align-items-center justify-content-between mb-3">
+                                                    <h3 class="text-primary"></h3>
+                                                    <div class="bg-primary icon iq-icon-box-2 mr-2 rounded rtl-ml-2  rtl-mr-0">
+                                                        <i class="las la-project-diagram"></i>
+                                                    </div>
+                                                </div><div align="center" id="pt1:app2" class="af_panelGroupLayout"><div><button dir="rtl" id="pt1:MenuButtonGISSYS" class="btn_GISSYS af_commandButton p_AFTextOnly" style="display:none" onclick="this.focus();return false;" data-afr-fcs="true" title="البوابة المكانية"></button></div></div>
+                                                 
+                                                <h4 class="app_card_txt">
+                                                    البوابة المكانية
+                                                </h4>
+                                                <div class="iq-progress-bar mt-0">
+                                                    <span class="bg-second-color" data-percent="100" style="transition: width 2s; width: 100%;"></span>
+                                                </div>
+                                            </div>
+                                        </div></a>
+                                        <a id="GoAppGISSYS" style="display: none" target="_blank"></a>
+                                </div>
+                                <div class="col-md-3 menuItem">
+                                    <a onclick="callAnyBtn('btn_SAMM')">
+                                        <div class="card card-block card-stretch app_card card-height rtl-mode activee ">
+                                            <div class="card-body">
+                                                <div class="top-block d-flex align-items-center justify-content-between mb-3">
+                                                    <h3 class="text-primary"></h3>
+                                                    <div class="bg-primary icon iq-icon-box-2 mr-2 rounded rtl-ml-2  rtl-mr-0">
+                                                        <i class="las la-project-diagram"></i>
+                                                    </div>
+                                                </div><div align="center" id="pt1:app3" class="af_panelGroupLayout"><div><button dir="rtl" id="pt1:MenuButtonSAMM" class="btn_SAMM af_commandButton p_AFTextOnly" style="display:none" onclick="this.focus();return false;" data-afr-fcs="true" title="ســـمّ، نظام إدارة الخدمات التقنية"></button></div></div>
+                                                 
+                                                <h4 class="app_card_txt">
+                                                    ســـمّ، نظام إدارة الخدمات التقنية
+                                                </h4>
+                                                <div class="iq-progress-bar mt-0">
+                                                    <span class="bg-second-color" data-percent="100" style="transition: width 2s; width: 100%;"></span>
+                                                </div>
+                                            </div>
+                                        </div></a>
+                                        <a id="GoAppSAMM" style="display: none" target="_blank"></a>
+                                </div>
+                                <div class="col-md-3 menuItem">
+                                    <a onclick="callAnyBtn('btn_NEW_KPI_APP')">
+                                        <div class="card card-block card-stretch app_card card-height rtl-mode activee ">
+                                            <div class="card-body">
+                                                <div class="top-block d-flex align-items-center justify-content-between mb-3">
+                                                    <h3 class="text-primary"></h3>
+                                                    <div class="bg-primary icon iq-icon-box-2 mr-2 rounded rtl-ml-2  rtl-mr-0">
+                                                        <i class="las la-project-diagram"></i>
+                                                    </div>
+                                                </div><div align="center" id="pt1:app4" class="af_panelGroupLayout"><div><button dir="rtl" id="pt1:MenuButtonNEW_KPI_APP" class="btn_NEW_KPI_APP af_commandButton p_AFTextOnly" style="display:none" onclick="this.focus();return false;" data-afr-fcs="true" title="منصة ذكاء الأعمال"></button></div></div>
+                                                 
+                                                <h4 class="app_card_txt">
+                                                    منصة ذكاء الأعمال
+                                                </h4>
+                                                <div class="iq-progress-bar mt-0">
+                                                    <span class="bg-second-color" data-percent="100" style="transition: width 2s; width: 100%;"></span>
+                                                </div>
+                                            </div>
+                                        </div></a>
+                                        <a id="GoAppNEW_KPI_APP" style="display: none" target="_blank"></a>
+                                </div>
+                                <div class="col-md-3 menuItem">
+                                    <a onclick="callAnyBtn('btn_RIM')">
+                                        <div class="card card-block card-stretch app_card card-height rtl-mode activee ">
+                                            <div class="card-body">
+                                                <div class="top-block d-flex align-items-center justify-content-between mb-3">
+                                                    <h3 class="text-primary"></h3>
+                                                    <div class="bg-primary icon iq-icon-box-2 mr-2 rounded rtl-ml-2  rtl-mr-0">
+                                                        <i class="las la-project-diagram"></i>
+                                                    </div>
+                                                </div><div align="center" id="pt1:app5" class="af_panelGroupLayout"><div><button dir="rtl" id="pt1:MenuButtonRIM" class="btn_RIM af_commandButton p_AFTextOnly" style="display:none" onclick="this.focus();return false;" data-afr-fcs="true" title="راســــل"></button></div></div>
+                                                 
+                                                <h4 class="app_card_txt">
+                                                    راســــل
+                                                </h4>
+                                                <div class="iq-progress-bar mt-0">
+                                                    <span class="bg-second-color" data-percent="100" style="transition: width 2s; width: 100%;"></span>
+                                                </div>
+                                            </div>
+                                        </div></a>
+                                        <a id="GoAppRIM" style="display: none" target="_blank"></a>
+                                </div>
+                                <div class="col-md-3 menuItem">
+                                    <a onclick="callAnyBtn('btn_INTRANET')">
+                                        <div class="card card-block card-stretch app_card card-height rtl-mode activee ">
+                                            <div class="card-body">
+                                                <div class="top-block d-flex align-items-center justify-content-between mb-3">
+                                                    <h3 class="text-primary"></h3>
+                                                    <div class="bg-primary icon iq-icon-box-2 mr-2 rounded rtl-ml-2  rtl-mr-0">
+                                                        <i class="las la-project-diagram"></i>
+                                                    </div>
+                                                </div><div align="center" id="pt1:app6" class="af_panelGroupLayout"><div><button dir="rtl" id="pt1:MenuButtonINTRANET" class="btn_INTRANET af_commandButton p_AFTextOnly" style="display:none" onclick="this.focus();return false;" data-afr-fcs="true" title="بوابة انتماء"></button></div></div>
+                                                 
+                                                <h4 class="app_card_txt">
+                                                    بوابة انتماء
+                                                </h4>
+                                                <div class="iq-progress-bar mt-0">
+                                                    <span class="bg-second-color" data-percent="100" style="transition: width 2s; width: 100%;"></span>
+                                                </div>
+                                            </div>
+                                        </div></a>
+                                        <a id="GoAppINTRANET" style="display: none" target="_blank"></a>
+                                </div>
+                                <div class="col-md-3 menuItem">
+                                    <a onclick="callAnyBtn('btn_BPM')">
+                                        <div class="card card-block card-stretch app_card card-height rtl-mode activee ">
+                                            <div class="card-body">
+                                                <div class="top-block d-flex align-items-center justify-content-between mb-3">
+                                                    <h3 class="text-primary"></h3>
+                                                    <div class="bg-primary icon iq-icon-box-2 mr-2 rounded rtl-ml-2  rtl-mr-0">
+                                                        <i class="las la-project-diagram"></i>
+                                                    </div>
+                                                </div><div align="center" id="pt1:app7" class="af_panelGroupLayout"><div><button dir="rtl" id="pt1:MenuButtonBPM" class="btn_BPM af_commandButton p_AFTextOnly" style="display:none" onclick="this.focus();return false;" data-afr-fcs="true" title="أنظمة أجراءات العمل"></button></div></div>
+                                                 
+                                                <h4 class="app_card_txt">
+                                                    أنظمة أجراءات العمل
+                                                </h4>
+                                                <div class="iq-progress-bar mt-0">
+                                                    <span class="bg-second-color" data-percent="100" style="transition: width 2s; width: 100%;"></span>
+                                                </div>
+                                            </div>
+                                        </div></a>
+                                        <a id="GoAppBPM" style="display: none" target="_blank"></a>
+                                </div>
+                                <div class="col-md-3 menuItem">
+                                    <a onclick="callAnyBtn('btn_AMANASITE')">
+                                        <div class="card card-block card-stretch app_card card-height rtl-mode activee ">
+                                            <div class="card-body">
+                                                <div class="top-block d-flex align-items-center justify-content-between mb-3">
+                                                    <h3 class="text-primary"></h3>
+                                                    <div class="bg-primary icon iq-icon-box-2 mr-2 rounded rtl-ml-2  rtl-mr-0">
+                                                        <i class="las la-project-diagram"></i>
+                                                    </div>
+                                                </div><div align="center" id="pt1:app8" class="af_panelGroupLayout"><div><button dir="rtl" id="pt1:MenuButtonAMANASITE" class="btn_AMANASITE af_commandButton p_AFTextOnly" style="display:none" onclick="this.focus();return false;" data-afr-fcs="true" title="موقع الامانة"></button></div></div>
+                                                 
+                                                <h4 class="app_card_txt">
+                                                    موقع الامانة
+                                                </h4>
+                                                <div class="iq-progress-bar mt-0">
+                                                    <span class="bg-second-color" data-percent="100" style="transition: width 2s; width: 100%;"></span>
+                                                </div>
+                                            </div>
+                                        </div></a>
+                                        <a id="GoAppAMANASITE" style="display: none" target="_blank"></a>
+                                </div>
+                                <div class="col-md-3 menuItem">
+                                    <a onclick="callAnyBtn('btn_ESERVICES')">
+                                        <div class="card card-block card-stretch app_card card-height rtl-mode activee ">
+                                            <div class="card-body">
+                                                <div class="top-block d-flex align-items-center justify-content-between mb-3">
+                                                    <h3 class="text-primary"></h3>
+                                                    <div class="bg-primary icon iq-icon-box-2 mr-2 rounded rtl-ml-2  rtl-mr-0">
+                                                        <i class="las la-project-diagram"></i>
+                                                    </div>
+                                                </div><div align="center" id="pt1:app9" class="af_panelGroupLayout"><div><button dir="rtl" id="pt1:MenuButtonESERVICES" class="btn_ESERVICES af_commandButton p_AFTextOnly" style="display:none" onclick="this.focus();return false;" data-afr-fcs="true" title="بوابة الخدمات الالكترونية"></button></div></div>
+                                                 
+                                                <h4 class="app_card_txt">
+                                                    بوابة الخدمات الالكترونية
+                                                </h4>
+                                                <div class="iq-progress-bar mt-0">
+                                                    <span class="bg-second-color" data-percent="100" style="transition: width 2s; width: 100%;"></span>
+                                                </div>
+                                            </div>
+                                        </div></a>
+                                        <a id="GoAppESERVICES" style="display: none" target="_blank"></a>
+                                </div>
+                                <div class="col-md-3 menuItem">
+                                    <a onclick="callAnyBtn('btn_CRM')">
+                                        <div class="card card-block card-stretch app_card card-height rtl-mode activee ">
+                                            <div class="card-body">
+                                                <div class="top-block d-flex align-items-center justify-content-between mb-3">
+                                                    <h3 class="text-primary"></h3>
+                                                    <div class="bg-primary icon iq-icon-box-2 mr-2 rounded rtl-ml-2  rtl-mr-0">
+                                                        <i class="las la-project-diagram"></i>
+                                                    </div>
+                                                </div><div align="center" id="pt1:app10" class="af_panelGroupLayout"><div><button dir="rtl" id="pt1:MenuButtonCRM" class="btn_CRM af_commandButton p_AFTextOnly" style="display:none" onclick="this.focus();return false;" data-afr-fcs="true" title="نظام إدارة علاقات العملاء "></button></div></div>
+                                                 
+                                                <h4 class="app_card_txt">
+                                                    نظام إدارة علاقات العملاء 
+                                                </h4>
+                                                <div class="iq-progress-bar mt-0">
+                                                    <span class="bg-second-color" data-percent="100" style="transition: width 2s; width: 100%;"></span>
+                                                </div>
+                                            </div>
+                                        </div></a>
+                                        <a id="GoAppCRM" style="display: none" target="_blank"></a>
+                                </div>
+                                <div class="col-md-3 menuItem">
+                                    <a onclick="callAnyBtn('btn_P_PLUS')">
+                                        <div class="card card-block card-stretch app_card card-height rtl-mode activee ">
+                                            <div class="card-body">
+                                                <div class="top-block d-flex align-items-center justify-content-between mb-3">
+                                                    <h3 class="text-primary"></h3>
+                                                    <div class="bg-primary icon iq-icon-box-2 mr-2 rounded rtl-ml-2  rtl-mr-0">
+                                                        <i class="las la-project-diagram"></i>
+                                                    </div>
+                                                </div><div align="center" id="pt1:app11" class="af_panelGroupLayout"><div><button dir="rtl" id="pt1:MenuButtonP_PLUS" class="btn_P_PLUS af_commandButton p_AFTextOnly" style="display:none" onclick="this.focus();return false;" data-afr-fcs="true" title="أنظمة إدارة المبادرات والمؤشرات الاستراتيجي"></button></div></div>
+                                                 
+                                                <h4 class="app_card_txt">
+                                                    أنظمة إدارة المبادرات والمؤشرات الاستراتيجي
+                                                </h4>
+                                                <div class="iq-progress-bar mt-0">
+                                                    <span class="bg-second-color" data-percent="100" style="transition: width 2s; width: 100%;"></span>
+                                                </div>
+                                            </div>
+                                        </div></a>
+                                        <a id="GoAppP_PLUS" style="display: none" target="_blank"></a>
+                                </div>
+                                <div class="col-md-3 menuItem">
+                                    <a onclick="callAnyBtn('btn_EPM')">
+                                        <div class="card card-block card-stretch app_card card-height rtl-mode activee ">
+                                            <div class="card-body">
+                                                <div class="top-block d-flex align-items-center justify-content-between mb-3">
+                                                    <h3 class="text-primary"></h3>
+                                                    <div class="bg-primary icon iq-icon-box-2 mr-2 rounded rtl-ml-2  rtl-mr-0">
+                                                        <i class="las la-project-diagram"></i>
+                                                    </div>
+                                                </div><div align="center" id="pt1:app12" class="af_panelGroupLayout"><div><button dir="rtl" id="pt1:MenuButtonEPM" class="btn_EPM af_commandButton p_AFTextOnly" style="display:none" onclick="this.focus();return false;" data-afr-fcs="true" title="لوحة قياس أداء استراتيجية الأمانة"></button></div></div>
+                                                 
+                                                <h4 class="app_card_txt">
+                                                    لوحة قياس أداء استراتيجية الأمانة
+                                                </h4>
+                                                <div class="iq-progress-bar mt-0">
+                                                    <span class="bg-second-color" data-percent="100" style="transition: width 2s; width: 100%;"></span>
+                                                </div>
+                                            </div>
+                                        </div></a>
+                                        <a id="GoAppEPM" style="display: none" target="_blank"></a>
+                                </div>
+                                <div class="col-md-3 menuItem">
+                                    <a onclick="callAnyBtn('btn_MEETING_TASK')">
+                                        <div class="card card-block card-stretch app_card card-height rtl-mode activee ">
+                                            <div class="card-body">
+                                                <div class="top-block d-flex align-items-center justify-content-between mb-3">
+                                                    <h3 class="text-primary"></h3>
+                                                    <div class="bg-primary icon iq-icon-box-2 mr-2 rounded rtl-ml-2  rtl-mr-0">
+                                                        <i class="las la-project-diagram"></i>
+                                                    </div>
+                                                </div><div align="center" id="pt1:app13" class="af_panelGroupLayout"><div><button dir="rtl" id="pt1:MenuButtonMEETING_TASK" class="btn_MEETING_TASK af_commandButton p_AFTextOnly" style="display:none" onclick="this.focus();return false;" data-afr-fcs="true" title="نظام المجالس واللجان ومتابعة المهام"></button></div></div>
+                                                 
+                                                <h4 class="app_card_txt">
+                                                    نظام المجالس واللجان ومتابعة المهام
+                                                </h4>
+                                                <div class="iq-progress-bar mt-0">
+                                                    <span class="bg-second-color" data-percent="100" style="transition: width 2s; width: 100%;"></span>
+                                                </div>
+                                            </div>
+                                        </div></a>
+                                        <a id="GoAppMEETING_TASK" style="display: none" target="_blank"></a>
+                                </div>
+                                <div class="col-md-3 menuItem">
+                                    <a onclick="callAnyBtn('btn_RAQB')">
+                                        <div class="card card-block card-stretch app_card card-height rtl-mode activee ">
+                                            <div class="card-body">
+                                                <div class="top-block d-flex align-items-center justify-content-between mb-3">
+                                                    <h3 class="text-primary"></h3>
+                                                    <div class="bg-primary icon iq-icon-box-2 mr-2 rounded rtl-ml-2  rtl-mr-0">
+                                                        <i class="las la-project-diagram"></i>
+                                                    </div>
+                                                </div><div align="center" id="pt1:app14" class="af_panelGroupLayout"><div><button dir="rtl" id="pt1:MenuButtonRAQB" class="btn_RAQB af_commandButton p_AFTextOnly" style="display:none" onclick="this.focus();return false;" data-afr-fcs="true" title="راقب / مثل"></button></div></div>
+                                                 
+                                                <h4 class="app_card_txt">
+                                                    راقب / مثل
+                                                </h4>
+                                                <div class="iq-progress-bar mt-0">
+                                                    <span class="bg-second-color" data-percent="100" style="transition: width 2s; width: 100%;"></span>
+                                                </div>
+                                            </div>
+                                        </div></a>
+                                        <a id="GoAppRAQB" style="display: none" target="_blank"></a>
+                                </div>
+                                <div class="col-md-3 menuItem">
+                                    <a onclick="callAnyBtn('btn_urbaneye')">
+                                        <div class="card card-block card-stretch app_card card-height rtl-mode activee ">
+                                            <div class="card-body">
+                                                <div class="top-block d-flex align-items-center justify-content-between mb-3">
+                                                    <h3 class="text-primary"></h3>
+                                                    <div class="bg-primary icon iq-icon-box-2 mr-2 rounded rtl-ml-2  rtl-mr-0">
+                                                        <i class="las la-project-diagram"></i>
+                                                    </div>
+                                                </div><div align="center" id="pt1:app15" class="af_panelGroupLayout"><div><button dir="rtl" id="pt1:MenuButtonurbaneye" class="btn_urbaneye af_commandButton p_AFTextOnly" style="display:none" onclick="this.focus();return false;" data-afr-fcs="true" title="منصة الرقابة الذكية للأحياء"></button></div></div>
+                                                 
+                                                <h4 class="app_card_txt">
+                                                    منصة الرقابة الذكية للأحياء
+                                                </h4>
+                                                <div class="iq-progress-bar mt-0">
+                                                    <span class="bg-second-color" data-percent="100" style="transition: width 2s;"></span>
+                                                </div>
+                                            </div>
+                                        </div></a>
+                                        <a id="GoAppurbaneye" style="display: none" target="_blank"></a>
+                                </div>
+                                <div class="col-md-3 menuItem">
+                                    <a onclick="callAnyBtn('btn_ISCOPEGARDEN')">
+                                        <div class="card card-block card-stretch app_card card-height rtl-mode activee ">
+                                            <div class="card-body">
+                                                <div class="top-block d-flex align-items-center justify-content-between mb-3">
+                                                    <h3 class="text-primary"></h3>
+                                                    <div class="bg-primary icon iq-icon-box-2 mr-2 rounded rtl-ml-2  rtl-mr-0">
+                                                        <i class="las la-project-diagram"></i>
+                                                    </div>
+                                                </div><div align="center" id="pt1:app16" class="af_panelGroupLayout"><div><button dir="rtl" id="pt1:MenuButtonISCOPEGARDEN" class="btn_ISCOPEGARDEN af_commandButton p_AFTextOnly" style="display:none" onclick="this.focus();return false;" data-afr-fcs="true" title="نظام اي سكوب"></button></div></div>
+                                                 
+                                                <h4 class="app_card_txt">
+                                                    نظام اي سكوب
+                                                </h4>
+                                                <div class="iq-progress-bar mt-0">
+                                                    <span class="bg-second-color" data-percent="100" style="transition: width 2s;"></span>
+                                                </div>
+                                            </div>
+                                        </div></a>
+                                        <a id="GoAppISCOPEGARDEN" style="display: none" target="_blank"></a>
+                                </div>
+                                <div class="col-md-3 menuItem">
+                                    <a onclick="callAnyBtn('btn_APP940')">
+                                        <div class="card card-block card-stretch app_card card-height rtl-mode activee ">
+                                            <div class="card-body">
+                                                <div class="top-block d-flex align-items-center justify-content-between mb-3">
+                                                    <h3 class="text-primary"></h3>
+                                                    <div class="bg-primary icon iq-icon-box-2 mr-2 rounded rtl-ml-2  rtl-mr-0">
+                                                        <i class="las la-project-diagram"></i>
+                                                    </div>
+                                                </div><div align="center" id="pt1:app17" class="af_panelGroupLayout"><div><button dir="rtl" id="pt1:MenuButtonAPP940" class="btn_APP940 af_commandButton p_AFTextOnly" style="display:none" onclick="this.focus();return false;" data-afr-fcs="true" title="نظام 940"></button></div></div>
+                                                 
+                                                <h4 class="app_card_txt">
+                                                    نظام 940
+                                                </h4>
+                                                <div class="iq-progress-bar mt-0">
+                                                    <span class="bg-second-color" data-percent="100" style="transition: width 2s;"></span>
+                                                </div>
+                                            </div>
+                                        </div></a>
+                                        <a id="GoAppAPP940" style="display: none" target="_blank"></a>
+                                </div>
+                                <div class="col-md-3 menuItem">
+                                    <a onclick="callAnyBtn('btn_UBS')">
+                                        <div class="card card-block card-stretch app_card card-height rtl-mode activee ">
+                                            <div class="card-body">
+                                                <div class="top-block d-flex align-items-center justify-content-between mb-3">
+                                                    <h3 class="text-primary"></h3>
+                                                    <div class="bg-primary icon iq-icon-box-2 mr-2 rounded rtl-ml-2  rtl-mr-0">
+                                                        <i class="las la-project-diagram"></i>
+                                                    </div>
+                                                </div><div align="center" id="pt1:app18" class="af_panelGroupLayout"><div><button dir="rtl" id="pt1:MenuButtonUBS" class="btn_UBS af_commandButton p_AFTextOnly" style="display:none" onclick="this.focus();return false;" data-afr-fcs="true" title="نظام الرخص الموحد (UPS)"></button></div></div>
+                                                 
+                                                <h4 class="app_card_txt">
+                                                    نظام الرخص الموحد (UPS)
+                                                </h4>
+                                                <div class="iq-progress-bar mt-0">
+                                                    <span class="bg-second-color" data-percent="100" style="transition: width 2s;"></span>
+                                                </div>
+                                            </div>
+                                        </div></a>
+                                        <a id="GoAppUBS" style="display: none" target="_blank"></a>
+                                </div>
+                                <div class="col-md-3 menuItem">
+                                    <a onclick="callAnyBtn('btn_RCP')">
+                                        <div class="card card-block card-stretch app_card card-height rtl-mode activee ">
+                                            <div class="card-body">
+                                                <div class="top-block d-flex align-items-center justify-content-between mb-3">
+                                                    <h3 class="text-primary"></h3>
+                                                    <div class="bg-primary icon iq-icon-box-2 mr-2 rounded rtl-ml-2  rtl-mr-0">
+                                                        <i class="las la-project-diagram"></i>
+                                                    </div>
+                                                </div><div align="center" id="pt1:app19" class="af_panelGroupLayout"><div><button dir="rtl" id="pt1:MenuButtonRCP" class="btn_RCP af_commandButton p_AFTextOnly" style="display:none" onclick="this.focus();return false;" data-afr-fcs="true" title="نظام تحصيل الإيرادات"></button></div></div>
+                                                 
+                                                <h4 class="app_card_txt">
+                                                    نظام تحصيل الإيرادات
+                                                </h4>
+                                                <div class="iq-progress-bar mt-0">
+                                                    <span class="bg-second-color" data-percent="100" style="transition: width 2s;"></span>
+                                                </div>
+                                            </div>
+                                        </div></a>
+                                        <a id="GoAppRCP" style="display: none" target="_blank"></a>
+                                </div>
+                                <div class="col-md-3 menuItem">
+                                    <a onclick="callAnyBtn('btn_AZWA_ADMIN')">
+                                        <div class="card card-block card-stretch app_card card-height rtl-mode activee ">
+                                            <div class="card-body">
+                                                <div class="top-block d-flex align-items-center justify-content-between mb-3">
+                                                    <h3 class="text-primary"></h3>
+                                                    <div class="bg-primary icon iq-icon-box-2 mr-2 rounded rtl-ml-2  rtl-mr-0">
+                                                        <i class="las la-project-diagram"></i>
+                                                    </div>
+                                                </div><div align="center" id="pt1:app20" class="af_panelGroupLayout"><div><button dir="rtl" id="pt1:MenuButtonAZWA_ADMIN" class="btn_AZWA_ADMIN af_commandButton p_AFTextOnly" style="display:none" onclick="this.focus();return false;" data-afr-fcs="true" title="الباك أوفيس-منصة عزوة"></button></div></div>
+                                                 
+                                                <h4 class="app_card_txt">
+                                                    الباك أوفيس-منصة عزوة
+                                                </h4>
+                                                <div class="iq-progress-bar mt-0">
+                                                    <span class="bg-second-color" data-percent="100" style="transition: width 2s;"></span>
+                                                </div>
+                                            </div>
+                                        </div></a>
+                                        <a id="GoAppAZWA_ADMIN" style="display: none" target="_blank"></a>
+                                </div>
+                                <div class="col-md-3 menuItem">
+                                    <a onclick="callAnyBtn('btn_AZWA')">
+                                        <div class="card card-block card-stretch app_card card-height rtl-mode activee ">
+                                            <div class="card-body">
+                                                <div class="top-block d-flex align-items-center justify-content-between mb-3">
+                                                    <h3 class="text-primary"></h3>
+                                                    <div class="bg-primary icon iq-icon-box-2 mr-2 rounded rtl-ml-2  rtl-mr-0">
+                                                        <i class="las la-project-diagram"></i>
+                                                    </div>
+                                                </div><div align="center" id="pt1:app21" class="af_panelGroupLayout"><div><button dir="rtl" id="pt1:MenuButtonAZWA" class="btn_AZWA af_commandButton p_AFTextOnly" style="display:none" onclick="this.focus();return false;" data-afr-fcs="true" title="البوابة-منصة عزوة"></button></div></div>
+                                                 
+                                                <h4 class="app_card_txt">
+                                                    البوابة-منصة عزوة
+                                                </h4>
+                                                <div class="iq-progress-bar mt-0">
+                                                    <span class="bg-second-color" data-percent="100" style="transition: width 2s;"></span>
+                                                </div>
+                                            </div>
+                                        </div></a>
+                                        <a id="GoAppAZWA" style="display: none" target="_blank"></a>
+                                </div>
+                                <div class="col-md-3 menuItem">
+                                    <a onclick="callAnyBtn('btn_MWMSR')">
+                                        <div class="card card-block card-stretch app_card card-height rtl-mode activee ">
+                                            <div class="card-body">
+                                                <div class="top-block d-flex align-items-center justify-content-between mb-3">
+                                                    <h3 class="text-primary"></h3>
+                                                    <div class="bg-primary icon iq-icon-box-2 mr-2 rounded rtl-ml-2  rtl-mr-0">
+                                                        <i class="las la-project-diagram"></i>
+                                                    </div>
+                                                </div><div align="center" id="pt1:app22" class="af_panelGroupLayout"><div><button dir="rtl" id="pt1:MenuButtonMWMSR" class="btn_MWMSR af_commandButton p_AFTextOnly" style="display:none" onclick="this.focus();return false;" data-afr-fcs="true" title="نظام ادارة النفايات البلدية الصلبة بمدينة الرياض"></button></div></div>
+                                                 
+                                                <h4 class="app_card_txt">
+                                                    نظام ادارة النفايات البلدية الصلبة بمدينة الرياض
+                                                </h4>
+                                                <div class="iq-progress-bar mt-0">
+                                                    <span class="bg-second-color" data-percent="100" style="transition: width 2s;"></span>
+                                                </div>
+                                            </div>
+                                        </div></a>
+                                        <a id="GoAppMWMSR" style="display: none" target="_blank"></a>
+                                </div>
+                                <div class="col-md-3 menuItem">
+                                    <a onclick="callAnyBtn('btn_YAMAMA')">
+                                        <div class="card card-block card-stretch app_card card-height rtl-mode activee ">
+                                            <div class="card-body">
+                                                <div class="top-block d-flex align-items-center justify-content-between mb-3">
+                                                    <h3 class="text-primary"></h3>
+                                                    <div class="bg-primary icon iq-icon-box-2 mr-2 rounded rtl-ml-2  rtl-mr-0">
+                                                        <i class="las la-project-diagram"></i>
+                                                    </div>
+                                                </div><div align="center" id="pt1:app23" class="af_panelGroupLayout"><div><button dir="rtl" id="pt1:MenuButtonYAMAMA" class="btn_YAMAMA af_commandButton p_AFTextOnly" style="display:none" onclick="this.focus();return false;" data-afr-fcs="true" title="عين اليمامة"></button></div></div>
+                                                 
+                                                <h4 class="app_card_txt">
+                                                    عين اليمامة
+                                                </h4>
+                                                <div class="iq-progress-bar mt-0">
+                                                    <span class="bg-second-color" data-percent="100" style="transition: width 2s;"></span>
+                                                </div>
+                                            </div>
+                                        </div></a>
+                                        <a id="GoAppYAMAMA" style="display: none" target="_blank"></a>
+                                </div>
+                                <div class="col-md-3 menuItem">
+                                    <a onclick="callAnyBtn('btn_CLOSED_ROAD')">
+                                        <div class="card card-block card-stretch app_card card-height rtl-mode activee ">
+                                            <div class="card-body">
+                                                <div class="top-block d-flex align-items-center justify-content-between mb-3">
+                                                    <h3 class="text-primary"></h3>
+                                                    <div class="bg-primary icon iq-icon-box-2 mr-2 rounded rtl-ml-2  rtl-mr-0">
+                                                        <i class="las la-project-diagram"></i>
+                                                    </div>
+                                                </div><div align="center" id="pt1:app24" class="af_panelGroupLayout"><div><button dir="rtl" id="pt1:MenuButtonCLOSED_ROAD" class="btn_CLOSED_ROAD af_commandButton p_AFTextOnly" style="display:none" onclick="this.focus();return false;" data-afr-fcs="true" title="خدمة اغلاق الطرق "></button></div></div>
+                                                 
+                                                <h4 class="app_card_txt">
+                                                    خدمة اغلاق الطرق 
+                                                </h4>
+                                                <div class="iq-progress-bar mt-0">
+                                                    <span class="bg-second-color" data-percent="100" style="transition: width 2s;"></span>
+                                                </div>
+                                            </div>
+                                        </div></a>
+                                        <a id="GoAppCLOSED_ROAD" style="display: none" target="_blank"></a>
+                                </div>
+                        </div></span></span>
+                                    
+                                </section>
+                            </div>
+                        </div>
+                        
+                    </div>
+                </div>
+            </div>
+            
+            <footer class="iq-footer rtl-footer">
+                <div class="container-fluid">
+                    <div class="row">
+                        <div class="col-lg-6 ">
+                            <ul class="list-inline mb-0  rtl-pr-0 rtl-right">
+                                <li class="list-inline-item ">
+                                    <a href="">سياسة الخصوصية</a>
+                                </li>
+                                <li class="list-inline-item">
+                                    <a href="">الشروط والاحكام</a>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-lg-6 text-right ">
+                            <a href="#">أمانة منطقة الرياض</a>
+                             2023 جميع الحقوق محفوظة
+                        </div>
+                    </div>
+                </div>
+            </footer><div id="pt1:pChange" style="display:none"><div style="top:auto;right:auto;left:auto;bottom:auto;width:auto;height:auto;position:relative;" id="pt1:pChange::content"></div></div></span>
+    <input type="hidden" name="org.apache.myfaces.trinidad.faces.FORM" value="f1"><input name="Adf-Window-Id" type="hidden" value="femnxi1b"><span id="f1::postscript"><span id="f1::postscript:st"></span></span><input name="Adf-Page-Id" id="Adf-Page-Id" type="hidden" autocomplete="off" value="1"><span><input type="hidden" name="javax.faces.ViewState" value="!vx2eczgtf"></span></form><div id="d1::msgCtr" style="display:none"><div id="d1_msgDlg" class="af_dialog af_messages_dialog"><div class="af_dialog_inactive-background" data-afr-panelwindowbackground="1"></div><div class="af_dialog_inactive-background" data-afr-panelwindowbackground="1"></div><div class="af_dialog_inactive-background" data-afr-panelwindowbackground="1"></div><div class="af_dialog_inactive-background" data-afr-panelwindowbackground="1"></div><table cellpadding="0" cellspacing="0" border="0" summary="" role="presentation" class="af_dialog_main"><tbody><tr><td class="p_AFResizable af_dialog_header-start" id="d1_msgDlg::_hee">&nbsp;</td><td class="p_AFResizable af_dialog_header" id="d1_msgDlg::_hce"><table style="cursor:default" cellpadding="0" cellspacing="0" border="0" width="100%" summary="" role="presentation"><tbody><tr><td class="af_dialog_header-icon-title-wrapper"><div id="d1_msgDlg::_ticn" class="af_dialog_icon-region" style="display:none"></div></td><td class="af_dialog_header-content-center" id="d1_msgDlg::tb"><div id="d1_msgDlg::_ttxt" class="af_dialog_title"></div></td><td class="af_dialog_header-close-icon-wrapper"><div class="af_dialog_close-icon-region"><a aria-label="إغلاق" href="#" onclick="this.focus();return false" class="af_dialog_close-icon-style" id="d1_msgDlg::close" title="إغلاق"></a></div></td></tr></tbody></table></td><td class="p_AFResizable af_dialog_header-end" id="d1_msgDlg::_hse">&nbsp;</td></tr><tr><td class="p_AFResizable af_dialog_content-start" id="d1_msgDlg::_cee">&nbsp;</td><td class="p_AFResizable af_dialog_content" id="d1_msgDlg::contentContainer"><div id="d1_msgDlg::_ccntr" class="af_dialog_content-center" style="width:auto;height:auto;position:relative;overflow:auto;"><div id="d1_msgDlg::_cnt" class="af_document_messages" data-afr-msg-apply-class="true"></div></div></td><td class="p_AFResizable af_dialog_content-end" id="d1_msgDlg::_cse">&nbsp;</td></tr><tr><td class="p_AFResizable af_dialog_footer-start" id="d1_msgDlg::_fee"><div></div></td><td class="p_AFResizable af_dialog_footer" id="d1_msgDlg::_fce"><table cellpadding="0" cellspacing="0" border="0" width="100%" summary="" role="presentation"><tbody><tr><td class="p_AFResizable af_dialog_footer-content" id="d1_msgDlg::_fcc"><div id="d1_msgDlg_cancel" class="af_dialog_footer-button-cancel af_button p_AFTextOnly p_AFActionDisabled" _afrgrp="0" role="presentation" data-afr-pdo="cancel"><a href="#" onclick="this.focus();return false" data-afr-fcs="true" class="af_button_link" role="button"><span class="af_button_text">موافق</span></a></div></td><td align="right" valign="bottom"><div class="p_AFResizable af_dialog_resize-icon-region"><a tabindex="-1" class="af_dialog_resize-icon-style" id="d1_msgDlg::_rse" title="إعادة تحجيم"></a></div></td></tr></tbody></table></td><td class="p_AFResizable af_dialog_footer-end" id="d1_msgDlg::_fse"><div></div></td></tr></tbody></table></div></div><div id="d1::liveCtr" role="alert" aria-live="assertive" aria-atomic="true" class="p_OraHiddenLabel"></div><span id="d1::iconC" style="display:none"><span id="af_message::confirmation-icon"><img src="/SSO/afr/confirmation.png" width="16" height="16" border="0" title="تأكيد" alt="تأكيد"></span><span id="af_message::error-icon"><img src="/SSO/afr/error.png" width="16" height="16" border="0" title="خطأ" alt="خطأ"></span><span id="af_message::fatal-icon"><img src="/SSO/afr/error.png" width="16" height="16" border="0" title="خطأ فادح" alt="خطأ فادح"></span><span id="af_message::info-icon"><img src="/SSO/afr/info.png" width="16" height="16" border="0" title="معلومات" alt="معلومات"></span><span id="af_message::warning-icon"><img src="/SSO/afr/warning.png" width="16" height="16" border="0" title="تحذير" alt="تحذير"></span><span id="af_messages::confirmation-icon"><img src="/SSO/afr/confirmation.png" width="16" height="16" border="0" title="تأكيد" alt="تأكيد"></span><span id="af_messages::error-icon"><img src="/SSO/afr/error.png" width="16" height="16" border="0" title="خطأ" alt="خطأ"></span><span id="af_messages::fatal-icon"><img src="/SSO/afr/error.png" width="16" height="16" border="0" title="خطأ فادح" alt="خطأ فادح"></span><span id="af_messages::info-icon"><img src="/SSO/afr/info.png" width="16" height="16" border="0" title="معلومات" alt="معلومات"></span><span id="af_messages::warning-icon"><img src="/SSO/afr/warning.png" width="16" height="16" border="0" title="تحذير" alt="تحذير"></span></span><div id="afr::DlgSrvPopupCtnr"><div id="afr::DlgSrvPopupCtnr::content" style="display:none"></div></div><div id="afr::UtilPopupCtnr" data-afr-pid="j_id4" data-afr-did="j_id5" style="display:none"><div id="j_id4" style="display:none"><div style="top:auto;right:auto;left:auto;bottom:auto;width:auto;height:auto;position:relative;" id="j_id4::content"><div id="j_id5" class="af_dialog"><div class="af_dialog_inactive-background" data-afr-panelwindowbackground="1"></div><div class="af_dialog_inactive-background" data-afr-panelwindowbackground="1"></div><div class="af_dialog_inactive-background" data-afr-panelwindowbackground="1"></div><div class="af_dialog_inactive-background" data-afr-panelwindowbackground="1"></div><table cellpadding="0" cellspacing="0" border="0" summary="" role="presentation" class="af_dialog_main"><tbody><tr><td class="af_dialog_header-start" id="j_id5::_hee">&nbsp;</td><td class="af_dialog_header" id="j_id5::_hce"><table style="cursor:default" cellpadding="0" cellspacing="0" border="0" width="100%" summary="" role="presentation"><tbody><tr><td class="af_dialog_header-icon-title-wrapper"><div id="j_id5::_ticn" class="af_dialog_icon-region" style="display:none"></div></td><td class="af_dialog_header-content-center" id="j_id5::tb"><div id="j_id5::_ttxt" class="af_dialog_title"></div></td></tr></tbody></table></td><td class="af_dialog_header-end" id="j_id5::_hse">&nbsp;</td></tr><tr><td class="af_dialog_content-start" id="j_id5::_cee">&nbsp;</td><td class="af_dialog_content" id="j_id5::contentContainer"></td><td class="af_dialog_content-end" id="j_id5::_cse">&nbsp;</td></tr><tr><td class="af_dialog_footer-start" id="j_id5::_fee"><div></div></td><td class="af_dialog_footer" id="j_id5::_fce"><table cellpadding="0" cellspacing="0" border="0" width="100%" summary="" role="presentation"><tbody><tr><td class="af_dialog_footer-content" id="j_id5::_fcc"><div id="j_id5_ok" class="af_dialog_footer-button-affirmative af_button p_AFTextOnly p_AFActionDisabled" _afrgrp="0" role="presentation" data-afr-pdo="ok"><a href="#" onclick="this.focus();return false" data-afr-fcs="true" class="af_button_link" role="button"><span class="af_button_text">موافق</span></a></div><div id="j_id5_cancel" class="af_dialog_footer-button-cancel af_button p_AFTextOnly p_AFActionDisabled" _afrgrp="0" role="presentation" data-afr-pdo="cancel"><a href="#" onclick="this.focus();return false" data-afr-fcs="true" class="af_button_link" role="button"><span class="af_button_text">إلغاء</span></a></div></td><td align="right" valign="bottom"><div class="af_dialog_resize-icon-region"><a tabindex="-1" class="af_dialog_resize-icon-style" id="j_id5::_rse" title="إعادة تحجيم"></a></div></td></tr></tbody></table></td><td class="af_dialog_footer-end" id="j_id5::_fse"><div></div></td></tr></tbody></table></div></div></div></div></div><script type="text/javascript" src="/SSO/afr/partition/webkit/n/default/opt/d/input-sr6c9i.js"></script><script type="text/javascript" src="/SSO/afr/partition/unknown/n/default/opt/d/file-iv2ou1.js"></script><script type="text/javascript" src="/SSO/afr/partition/unknown/n/default/opt/d/iedit-icqoy1.js"></script><script type="text/javascript" src="/SSO/afr/partition/unknown/n/default/opt/d/uncommon-g7fvdk.js"></script><script type="text/javascript">AdfBootstrap._onLoad=function (){if (AdfPage.PAGE.__checkRichResponseDirty()) return;AdfPage.PAGE.__loadCoreBackgroundScript('/SSO/afr/partition/unknown/n/default/opt/d/background-c8q6ki.js');AdfAgent.AGENT.elementsAdded(document);AdfPage.PAGE.setPageStateId("1");AdfDhtmlLookAndFeel.addSkinProperties({"af|messages::intro":"af_messages_intro","af|messages::intro-separator":"af_messages_intro-separator","af|messages::component-link":"af_messages_component-link","af|messages::message-group-title":"af_messages_message-group-title","af|messages::message-group-list":"af_messages_message-group-list","af|messages::message-group-type-separator":"af_messages_message-group-type-separator","af|messages::header":"af_messages_header","af|messages::header-icon":"af_messages_header-icon","af|messages::header-text":"af_messages_header-text","af|messages::body":"af_messages_body","af|messages::message-list-page":"af_messages_message-list-page","af|message::detail":"af_message_detail","af|message::summary":"af_message_summary","af|message::type":"af_message_type","af|message::intro":"af_message_intro","af|message::message-list-component":"af_message_message-list-component","af|message::container":"af_message_container","af|message::component-messages-list-container":"af_message_component-messages-list-container","af|message::icon-cell":"af_message_icon-cell","af|message::detail-cell":"af_message_detail-cell","af|messages::detail":"af_messages_detail","af|messages::summary":"af_messages_summary",".AFNoteWindow-tr-open-animation-duration":"200",".AFNoteWindow-tr-animate":"true","af|popup-tr-shadow-pixel-size":5,"af|popup-tr-shadow-offset":1,"af|popup-tr-shadow-starting-black-percent":50,".AFPopupSelector-tr-open-animation-duration":"200",".AFPopupSelector-tr-animate":"true","af|dialog-tr-button-type":"unified","af|dialog::resize-ghost":"af_dialog_resize-ghost","af|dialog-tr-open-animation-duration":"300","af|dialog-tr-animate":"true"});AdfPage.PAGE.addComponents(new AdfRichDocument('d1',{'title':'\u0628\u0648\u0627\u0628\u0629 \u0627\u0644\u062f\u062e\u0648\u0644 \u0627\u0644\u0645\u0648\u062d\u062f'}),new AdfRichForm('f1'),new AdfRichLink('pt1:pt_l1',{'immediate':true}),new AdfRichImage('pt1:j_idt10',{'source':'../img?location=/img/EMP/EMP_PIC/EMP_137741.png'}),new AdfRichImage('pt1:j_idt13',{'source':'../img?location=/img/EMP/EMP_PIC/EMP_137741.png'}),new AdfRichLink('pt1:pt_Exit',{'immediate':true}),new AdfRichInputFile('pt1:ifProfileId',{'autoSubmit':true,'_afrFileSize':5120000,'_afrDiskSpace':5120000}),new AdfRichButton('pt1:pt_l4'),new AdfRichLink('pt1:l1',{'immediate':true}),new AdfRichLink('pt1:pt_l2',{'disabled':true}),new AdfRichLink('pt1:pt_l3',{'disabled':true}),new AdfRichLink('pt1:fav'),new AdfRichLink('pt1:Unfav'),new AdfRichCommandButton('pt1:MenuButtonFORM_APP',{'visible':false,'partialSubmit':true,'accessKey':'\uffff','styleClass':'btn_FORM_APP','shortDesc':'\u0627\u0644\u0627\u0646\u0638\u0645\u0629 \u0627\u0644\u062a\u0637\u0628\u064a\u0642\u064a\u0629'}),new AdfRichCommandButton('pt1:MenuButtonADF',{'visible':false,'partialSubmit':true,'accessKey':'\uffff','styleClass':'btn_ADF','shortDesc':'\u0628\u0648\u0627\u0628\u0629 \u0627\u0644\u0623\u0646\u0638\u0645\u0629 \u0627\u0644\u0623\u0633\u0627\u0633\u064a\u0629'}),new AdfRichCommandButton('pt1:MenuButtonGISSYS',{'visible':false,'partialSubmit':true,'accessKey':'\uffff','styleClass':'btn_GISSYS','shortDesc':'\u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0627\u0644\u0645\u0643\u0627\u0646\u064a\u0629'}),new AdfRichCommandButton('pt1:MenuButtonSAMM',{'visible':false,'partialSubmit':true,'accessKey':'\uffff','styleClass':'btn_SAMM','shortDesc':'\u0633\u0640\u0640\u0640\u0645\u0651\u060c \u0646\u0638\u0627\u0645 \u0625\u062f\u0627\u0631\u0629 \u0627\u0644\u062e\u062f\u0645\u0627\u062a \u0627\u0644\u062a\u0642\u0646\u064a\u0629'}),new AdfRichCommandButton('pt1:MenuButtonNEW_KPI_APP',{'visible':false,'partialSubmit':true,'accessKey':'\uffff','styleClass':'btn_NEW_KPI_APP','shortDesc':'\u0645\u0646\u0635\u0629 \u0630\u0643\u0627\u0621 \u0627\u0644\u0623\u0639\u0645\u0627\u0644'}),new AdfRichCommandButton('pt1:MenuButtonRIM',{'visible':false,'partialSubmit':true,'accessKey':'\uffff','styleClass':'btn_RIM','shortDesc':'\u0631\u0627\u0633\u0640\u0640\u0640\u0640\u0644'}),new AdfRichCommandButton('pt1:MenuButtonINTRANET',{'visible':false,'partialSubmit':true,'accessKey':'\uffff','styleClass':'btn_INTRANET','shortDesc':'\u0628\u0648\u0627\u0628\u0629 \u0627\u0646\u062a\u0645\u0627\u0621'}),new AdfRichCommandButton('pt1:MenuButtonBPM',{'visible':false,'partialSubmit':true,'accessKey':'\uffff','styleClass':'btn_BPM','shortDesc':'\u0623\u0646\u0638\u0645\u0629 \u0623\u062c\u0631\u0627\u0621\u0627\u062a \u0627\u0644\u0639\u0645\u0644'}),new AdfRichCommandButton('pt1:MenuButtonAMANASITE',{'visible':false,'partialSubmit':true,'accessKey':'\uffff','styleClass':'btn_AMANASITE','shortDesc':'\u0645\u0648\u0642\u0639 \u0627\u0644\u0627\u0645\u0627\u0646\u0629'}),new AdfRichCommandButton('pt1:MenuButtonESERVICES',{'visible':false,'partialSubmit':true,'accessKey':'\uffff','styleClass':'btn_ESERVICES','shortDesc':'\u0628\u0648\u0627\u0628\u0629 \u0627\u0644\u062e\u062f\u0645\u0627\u062a \u0627\u0644\u0627\u0644\u0643\u062a\u0631\u0648\u0646\u064a\u0629'}),new AdfRichCommandButton('pt1:MenuButtonCRM',{'visible':false,'partialSubmit':true,'accessKey':'\uffff','styleClass':'btn_CRM','shortDesc':'\u0646\u0638\u0627\u0645 \u0625\u062f\u0627\u0631\u0629 \u0639\u0644\u0627\u0642\u0627\u062a \u0627\u0644\u0639\u0645\u0644\u0627\u0621 '}),new AdfRichCommandButton('pt1:MenuButtonP_PLUS',{'visible':false,'partialSubmit':true,'accessKey':'\uffff','styleClass':'btn_P_PLUS','shortDesc':'\u0623\u0646\u0638\u0645\u0629 \u0625\u062f\u0627\u0631\u0629 \u0627\u0644\u0645\u0628\u0627\u062f\u0631\u0627\u062a \u0648\u0627\u0644\u0645\u0624\u0634\u0631\u0627\u062a \u0627\u0644\u0627\u0633\u062a\u0631\u0627\u062a\u064a\u062c\u064a'}),new AdfRichCommandButton('pt1:MenuButtonEPM',{'visible':false,'partialSubmit':true,'accessKey':'\uffff','styleClass':'btn_EPM','shortDesc':'\u0644\u0648\u062d\u0629 \u0642\u064a\u0627\u0633 \u0623\u062f\u0627\u0621 \u0627\u0633\u062a\u0631\u0627\u062a\u064a\u062c\u064a\u0629 \u0627\u0644\u0623\u0645\u0627\u0646\u0629'}),new AdfRichCommandButton('pt1:MenuButtonMEETING_TASK',{'visible':false,'partialSubmit':true,'accessKey':'\uffff','styleClass':'btn_MEETING_TASK','shortDesc':'\u0646\u0638\u0627\u0645 \u0627\u0644\u0645\u062c\u0627\u0644\u0633 \u0648\u0627\u0644\u0644\u062c\u0627\u0646 \u0648\u0645\u062a\u0627\u0628\u0639\u0629 \u0627\u0644\u0645\u0647\u0627\u0645'}),new AdfRichCommandButton('pt1:MenuButtonRAQB',{'visible':false,'partialSubmit':true,'accessKey':'\uffff','styleClass':'btn_RAQB','shortDesc':'\u0631\u0627\u0642\u0628 / \u0645\u062b\u0644'}),new AdfRichCommandButton('pt1:MenuButtonurbaneye',{'visible':false,'partialSubmit':true,'accessKey':'\uffff','styleClass':'btn_urbaneye','shortDesc':'\u0645\u0646\u0635\u0629 \u0627\u0644\u0631\u0642\u0627\u0628\u0629 \u0627\u0644\u0630\u0643\u064a\u0629 \u0644\u0644\u0623\u062d\u064a\u0627\u0621'}),new AdfRichCommandButton('pt1:MenuButtonISCOPEGARDEN',{'visible':false,'partialSubmit':true,'accessKey':'\uffff','styleClass':'btn_ISCOPEGARDEN','shortDesc':'\u0646\u0638\u0627\u0645 \u0627\u064a \u0633\u0643\u0648\u0628'}),new AdfRichCommandButton('pt1:MenuButtonAPP940',{'visible':false,'partialSubmit':true,'accessKey':'\uffff','styleClass':'btn_APP940','shortDesc':'\u0646\u0638\u0627\u0645 940'}),new AdfRichCommandButton('pt1:MenuButtonUBS',{'visible':false,'partialSubmit':true,'accessKey':'\uffff','styleClass':'btn_UBS','shortDesc':'\u0646\u0638\u0627\u0645 \u0627\u0644\u0631\u062e\u0635 \u0627\u0644\u0645\u0648\u062d\u062f (UPS)'}),new AdfRichCommandButton('pt1:MenuButtonRCP',{'visible':false,'partialSubmit':true,'accessKey':'\uffff','styleClass':'btn_RCP','shortDesc':'\u0646\u0638\u0627\u0645 \u062a\u062d\u0635\u064a\u0644 \u0627\u0644\u0625\u064a\u0631\u0627\u062f\u0627\u062a'}),new AdfRichCommandButton('pt1:MenuButtonAZWA_ADMIN',{'visible':false,'partialSubmit':true,'accessKey':'\uffff','styleClass':'btn_AZWA_ADMIN','shortDesc':'\u0627\u0644\u0628\u0627\u0643 \u0623\u0648\u0641\u064a\u0633-\u0645\u0646\u0635\u0629 \u0639\u0632\u0648\u0629'}),new AdfRichCommandButton('pt1:MenuButtonAZWA',{'visible':false,'partialSubmit':true,'accessKey':'\uffff','styleClass':'btn_AZWA','shortDesc':'\u0627\u0644\u0628\u0648\u0627\u0628\u0629-\u0645\u0646\u0635\u0629 \u0639\u0632\u0648\u0629'}),new AdfRichCommandButton('pt1:MenuButtonMWMSR',{'visible':false,'partialSubmit':true,'accessKey':'\uffff','styleClass':'btn_MWMSR','shortDesc':'\u0646\u0638\u0627\u0645 \u0627\u062f\u0627\u0631\u0629 \u0627\u0644\u0646\u0641\u0627\u064a\u0627\u062a \u0627\u0644\u0628\u0644\u062f\u064a\u0629 \u0627\u0644\u0635\u0644\u0628\u0629 \u0628\u0645\u062f\u064a\u0646\u0629 \u0627\u0644\u0631\u064a\u0627\u0636'}),new AdfRichCommandButton('pt1:MenuButtonYAMAMA',{'visible':false,'partialSubmit':true,'accessKey':'\uffff','styleClass':'btn_YAMAMA','shortDesc':'\u0639\u064a\u0646 \u0627\u0644\u064a\u0645\u0627\u0645\u0629'}),new AdfRichCommandButton('pt1:MenuButtonCLOSED_ROAD',{'visible':false,'partialSubmit':true,'accessKey':'\uffff','styleClass':'btn_CLOSED_ROAD','shortDesc':'\u062e\u062f\u0645\u0629 \u0627\u063a\u0644\u0627\u0642 \u0627\u0644\u0637\u0631\u0642 '}),new AdfRichPopup('pt1:pChange',{'contentDelivery':'lazyUncached','autoCancel':'disabled','resetEditableValues':'whenCanceled'}),new AdfRichDialog('d1_msgDlg',{'modal':false,'resize':'on'}),new AdfRichButton('d1_msgDlg_cancel',{'unsecure':{'disabled':'1'},'accessKey':'\uffff','styleClass':'af_dialog_footer-button-cancel'}),new AdfDialogServicePopupContainer('afr::DlgSrvPopupCtnr'),new AdfRichPopup('j_id4',{'contentDelivery':'immediate'}),new AdfRichDialog('j_id5',{'okVisible':false,'cancelVisible':false,'closeIconVisible':false}),new AdfRichButton('j_id5_ok',{'unsecure':{'disabled':'1'},'accessKey':'\uffff','styleClass':'af_dialog_footer-button-affirmative'}),new AdfRichButton('j_id5_cancel',{'unsecure':{'disabled':'1'},'accessKey':'\uffff','styleClass':'af_dialog_footer-button-cancel'}));AdfPage.PAGE.setDefaultMessageHandlerComponentId("d1");AdfPage.PAGE.__initializeSessionTimeoutTimer(180000000, 120000, "http://app.alriyadh.gov.sa:80/SSO/faces/home");AdfPage.PAGE.__initUserInactivityTimeout(600000);AdfPage.PAGE.__setShouldValidateEmptyFields(true);AdfPage.PAGE.__setViewId('/home');var exScripts=AdfBootstrap._extendedScripts;for (var i=0;i<exScripts.length;i++){exScripts[i]()};AdfBootstrap._extendedScripts=null;AdfPage.PAGE.__onLoad();};window.onload=AdfBootstrap._onLoad;</script><script type="text/javascript">AdfBootstrap._extendedScripts=[function(){AdfPage.PAGE.setPageId('4');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt39');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:MenuButtonFORM_APP');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt41');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt42');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:MenuButtonADF');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt43');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt44');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:MenuButtonGISSYS');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt45');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt46');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:MenuButtonSAMM');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt47');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt48');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:MenuButtonNEW_KPI_APP');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt49');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt50');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:MenuButtonRIM');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt51');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt52');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:MenuButtonINTRANET');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt53');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt54');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:MenuButtonBPM');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt55');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt56');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:MenuButtonAMANASITE');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt57');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt58');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:MenuButtonESERVICES');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt59');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt60');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:MenuButtonCRM');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt61');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt62');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:MenuButtonP_PLUS');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt63');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt64');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:MenuButtonEPM');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt65');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt66');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:MenuButtonMEETING_TASK');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt67');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt68');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:MenuButtonRAQB');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt69');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt70');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:MenuButtonurbaneye');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt71');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt72');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:MenuButtonISCOPEGARDEN');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt73');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt74');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:MenuButtonAPP940');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt75');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt76');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:MenuButtonUBS');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt77');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt78');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:MenuButtonRCP');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt79');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt80');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:MenuButtonAZWA_ADMIN');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt81');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt82');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:MenuButtonAZWA');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt83');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt84');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:MenuButtonMWMSR');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt85');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt86');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:MenuButtonYAMAMA');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt87');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt88');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:MenuButtonCLOSED_ROAD');},function(){AdfPage.PAGE.updateAutoPPRComponents('4','pt1:j_idt89');},function(){AdfPage.PAGE.__setHintPresentationMode('AUTO');}];</script><form action="#"><input id="afr::ATFlush" type="hidden" value="0"></form><svg id="SvgjsSvg1001" width="2" height="0" xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:svgjs="http://svgjs.com/svgjs" style="overflow: hidden; top: -100%; left: -100%; position: absolute; opacity: 0;"><defs id="SvgjsDefs1002"></defs><polyline id="SvgjsPolyline1003" points="0,0"></polyline><path id="SvgjsPath1004" d="M0 0 "></path></svg><div id="_afrParserDiv" style="display: none;"></div></body><!--Created by Oracle ADF (Version information hidden), accessibility (mode:null, contrast:standard, size:medium), skin:myStyle.desktop (myStyle)--></html>
