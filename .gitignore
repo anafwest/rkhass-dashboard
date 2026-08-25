@@ -26,3 +26,9 @@ report.html
 scrape_now.py
 test_cdp.py
 scraper_log.txt
+test_*.py
+debug_*.py
+explore_*.py
+clear_search.py
+wait_adf.py
+check_bls.py
