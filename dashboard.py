@@ -242,6 +242,9 @@ def classify(stage):
 
 df["تصنيف"] = df["وصف المرحلة"].apply(classify)
 
+excluded_stages = ["إصدار قرار مساحي", "تجزئة ودمج", "تحديث صك", "قرار مساحي", "إصدار شهادات اشغال"]
+df = df[~df["وصف المرحلة"].isin(excluded_stages)].copy()
+
 df_f = df.copy()
 
 today = datetime.now()
