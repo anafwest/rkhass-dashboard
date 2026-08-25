@@ -28,7 +28,7 @@ st.markdown("""
     .header-bar .sub { font-size: 11px; opacity: 0.85; margin: 2px 0 0 0; font-weight: 300; }
     .header-bar .badge { background: rgba(255,255,255,0.15); padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 600; }
 
-    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 12px; }
     .kpi { background: white; border-radius: 10px; padding: 12px 10px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid #e8ecf0; position: relative; overflow: hidden; transition: transform 0.2s, box-shadow 0.2s; }
     .kpi:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
     .kpi-val { font-size: 26px; font-weight: 800; direction: ltr; display: inline-block; }
@@ -209,11 +209,12 @@ stages_done = [
     "تم الاطلاع", "إعتماد رئيس البلدية لشهادة اتمام بناء", "اعتماد رئيس الجهة",
     "تم تنفيذ التعديل", "منجز",
     "مرفوض", "ايقاف",
-    "طلب وثائق", "ارسلت الى المستفيد", "ارجاع طلب",
-    "رد الى المهندس", "رفض شهادة اتمام بناء",
     "طلب تعديل من المستفيد",
 ]
-stages_returned = []
+stages_returned = [
+    "طلب وثائق", "ارسلت الى المستفيد", "ارجاع طلب",
+    "رد الى المهندس", "رفض شهادة اتمام بناء",
+]
 stages_in_progress = [
     "تحويل الى المراقب الفني", "تحويل الى المهندس",
     "تحويل لبلدية", "تم السداد",
@@ -235,6 +236,7 @@ def classify(stage):
         return "غير محدد"
     s = str(stage).strip()
     if s in stages_done: return "منجز"
+    if s in stages_returned: return "معاد للمستفيد"
     if s in stages_new: return "جديد"
     if s in stages_in_progress: return "تحت الإجراء"
     return "غير محدد"
@@ -348,11 +350,15 @@ if flt_سنة: df_f = df_f[df_f["السنة"].isin(flt_سنة)]
 
 total = len(df_f)
 done = (df_f["تصنيف"] == "منجز").sum()
+returned = (df_f["تصنيف"] == "معاد للمستفيد").sum()
 in_prog = (df_f["تصنيف"] == "تحت الإجراء").sum()
 new = (df_f["تصنيف"] == "جديد").sum()
 unspecified = (df_f["تصنيف"] == "غير محدد").sum()
 
+total_done = done + returned
 done_pct = round(done / total * 100, 1) if total else 0
+ret_pct = round(returned / total * 100, 1) if total else 0
+total_done_pct = round(total_done / total * 100, 1) if total else 0
 in_pct = round(in_prog / total * 100, 1) if total else 0
 new_pct = round(new / total * 100, 1) if total else 0
 
@@ -375,22 +381,23 @@ st.markdown(f"""
 
 st.markdown(f"""<div class="kpi-grid">
     <div class="kpi k-total"><div class="kpi-val">{total:,}</div><div class="kpi-lbl">📋 إجمالي الطلبات</div><div class="kpi-sub">في الفترة المحددة</div><div class="kpi-bar"></div></div>
-    <div class="kpi k-done"><div class="kpi-val">{done:,}</div><div class="kpi-lbl">✅ منجز</div><div class="kpi-sub">{done_pct}% من الإجمالي</div><div class="kpi-bar"></div></div>
+    <div class="kpi k-done"><div class="kpi-val">{total_done:,}</div><div class="kpi-lbl">✅ منجز</div><div class="kpi-sub">{total_done_pct}% من الإجمالي (شامل معاد للمستفيد)</div><div class="kpi-bar"></div></div>
+    <div class="kpi k-ret"><div class="kpi-val">{returned:,}</div><div class="kpi-lbl">🔄 معاد للمستفيد</div><div class="kpi-sub">{ret_pct}% من الإجمالي (محسوب مع منجز)</div><div class="kpi-bar"></div></div>
     <div class="kpi k-prog"><div class="kpi-val">{in_prog:,}</div><div class="kpi-lbl">⚙️ تحت الإجراء</div><div class="kpi-sub">{in_pct}% من الإجمالي</div><div class="kpi-bar"></div></div>
     <div class="kpi k-new"><div class="kpi-val">{new:,}</div><div class="kpi-lbl">🆕 جديد</div><div class="kpi-sub">{new_pct}% من الإجمالي</div><div class="kpi-bar"></div></div>
 </div>""", unsafe_allow_html=True)
 
 st.markdown(f"""<div class="metric-row">
     <div class="metric-card"><div class="metric-val">{avg_duration} يوم</div><div class="metric-lbl">⏱️ متوسط مدة الإنجاز</div></div>
-    <div class="metric-card"><div class="metric-val">{done_pct}%</div><div class="metric-lbl">📈 نسبة الإنجاز</div></div>
+    <div class="metric-card"><div class="metric-val">{total_done_pct}%</div><div class="metric-lbl">📈 نسبة الإنجاز (شامل معاد للمستفيد)</div></div>
     <div class="metric-card"><div class="metric-val">{in_pct}%</div><div class="metric-lbl">⚙️ نسبة تحت الإجراء</div></div>
     <div class="metric-card"><div class="metric-val">{len(df_f[df_f['تاريخ الطلب ميلادي'].dt.year == today.year]) if 'تاريخ الطلب ميلادي' in df_f.columns and not df_f['تاريخ الطلب ميلادي'].isna().all() else 0:,}</div><div class="metric-lbl">📅 طلبات سنة {today.year}</div></div>
 </div>""", unsafe_allow_html=True)
 
-filter_labels = {"الكل": "الكل", "منجز": "✅ منجز", "تحت الإجراء": "⚙️ تحت الإجراء", "جديد": "🆕 جديد", "غير محدد": "❓ غير محدد"}
-filter_cols = st.columns(5)
-filter_options = ["الكل", "منجز", "تحت الإجراء", "جديد", "غير محدد"]
-filter_counts = [total, done, in_prog, new, unspecified]
+filter_labels = {"الكل": "الكل", "منجز": "✅ منجز", "معاد للمستفيد": "🔄 معاد للمستفيد", "تحت الإجراء": "⚙️ تحت الإجراء", "جديد": "🆕 جديد", "غير محدد": "❓ غير محدد"}
+filter_cols = st.columns(6)
+filter_options = ["الكل", "منجز", "معاد للمستفيد", "تحت الإجراء", "جديد", "غير محدد"]
+filter_counts = [total, done, returned, in_prog, new, unspecified]
 
 for i, (opt, cnt) in enumerate(zip(filter_options, filter_counts)):
     with filter_cols[i]:
@@ -411,7 +418,7 @@ with r1:
     st.markdown('<div class="box"><div class="box-title">🍩 توزيع الطلبات حسب التصنيف</div>', unsafe_allow_html=True)
     pie_data = df["تصنيف"].value_counts().reset_index()
     pie_data.columns = ["الحالة", "العدد"]
-    color_map_pie = {"منجز": "#15803d", "تحت الإجراء": "#d97706", "جديد": "#7c3aed", "غير محدد": "#94a3b8"}
+    color_map_pie = {"منجز": "#15803d", "معاد للمستفيد": "#2563eb", "تحت الإجراء": "#d97706", "جديد": "#7c3aed", "غير محدد": "#94a3b8"}
     fig = px.pie(pie_data, names="الحالة", values="العدد", hole=0.55, color="الحالة", color_discrete_map=color_map_pie)
     fig.update_layout(height=220, margin=dict(l=5, r=5, t=10, b=5), showlegend=True, legend=dict(font=dict(size=9), orientation="h", y=-0.1))
     fig.update_traces(textposition='inside', textinfo='percent', textfont_size=10, marker=dict(line=dict(color='white', width=2)))
@@ -465,7 +472,7 @@ with r5:
     if "السنة" in df_f.columns:
         cat = df_f.groupby(["السنة", "تصنيف"]).size().reset_index(name="العدد")
         fig = px.bar(cat, x="السنة", y="العدد", color="تصنيف", barmode="stack",
-                     color_discrete_map={"منجز": "#15803d", "تحت الإجراء": "#d97706", "جديد": "#7c3aed", "غير محدد": "#94a3b8"})
+                     color_discrete_map={"منجز": "#15803d", "معاد للمستفيد": "#2563eb", "تحت الإجراء": "#d97706", "جديد": "#7c3aed", "غير محدد": "#94a3b8"})
         fig.update_layout(height=210, margin=dict(l=5, r=5, t=10, b=5), legend=dict(font=dict(size=8), orientation="h", y=-0.15), xaxis=dict(tickfont=dict(size=9)), yaxis=dict(tickfont=dict(size=9)))
         st.plotly_chart(fig, use_container_width=True)
     else:
