@@ -9,6 +9,18 @@ import os
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 os.chdir(PROJECT_DIR)
 
+def read_html_file(path):
+    for enc in ["utf-8", "cp1256", "windows-1256", "latin-1"]:
+        try:
+            with open(path, "rb") as f:
+                raw = f.read().decode(enc, errors="replace")
+            tables = pd.read_html(raw)
+            if tables:
+                return tables[0]
+        except Exception:
+            continue
+    return None
+
 st.set_page_config(page_title="مؤشر أداء رخص البناء", page_icon="🏗️", layout="wide", initial_sidebar_state="collapsed")
 
 st.markdown("""
@@ -135,18 +147,12 @@ if st.session_state.data_source == "none":
             st.session_state.data_source = "default"
     elif os.path.exists("data.xls"):
         try:
-            tmp = process_data(pd.read_html("data.xls", encoding="utf-8")[0])
+            tmp = process_data(read_html_file("data.xls"))
             if tmp is not None:
                 st.session_state["df"] = tmp
                 st.session_state.data_source = "default"
-        except:
-            try:
-                tmp = process_data(pd.read_html("data.xls", encoding="cp1256")[0])
-                if tmp is not None:
-                    st.session_state["df"] = tmp
-                    st.session_state.data_source = "default"
-            except:
-                pass
+        except Exception:
+            pass
 
 # ======================== اختيار مصدر البيانات =====================
 if "df" not in st.session_state:
@@ -166,20 +172,13 @@ if "df" not in st.session_state:
                     st.rerun()
             if os.path.exists("data.xls"):
                 try:
-                    tmp = process_data(pd.read_html("data.xls", encoding="utf-8")[0])
+                    tmp = process_data(read_html_file("data.xls"))
                     if tmp is not None:
                         st.session_state["df"] = tmp
                         st.session_state.data_source = "default"
                         st.rerun()
-                except:
-                    try:
-                        tmp = process_data(pd.read_html("data.xls", encoding="cp1256")[0])
-                        if tmp is not None:
-                            st.session_state["df"] = tmp
-                            st.session_state.data_source = "default"
-                            st.rerun()
-                    except:
-                        pass
+                except Exception:
+                    pass
             st.error("لم يتم العثور على ملف بيانات في المجلد")
     with col2:
         st.markdown("### 2. رفع ملف من جهازك")
@@ -279,13 +278,13 @@ with r2:
                 st.rerun()
         elif os.path.exists("data.xls"):
             try:
-                tmp = process_data(pd.read_html("data.xls", encoding="utf-8")[0])
+                tmp = process_data(read_html_file("data.xls"))
                 if tmp is not None:
                     st.session_state["df"] = tmp
                     st.session_state.data_source = "default"
                     st.success("✅ تم تحديث البيانات")
                     st.rerun()
-            except:
+            except Exception:
                 pass
         st.error("⚠️ لا يوجد ملف بيانات في المجلد")
 
