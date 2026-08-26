@@ -28,7 +28,7 @@ st.markdown("""
     .header-bar .sub { font-size: 11px; opacity: 0.85; margin: 2px 0 0 0; font-weight: 300; }
     .header-bar .badge { background: rgba(255,255,255,0.15); padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 600; }
 
-    .kpi-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 12px; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; margin-bottom: 12px; }
     .kpi { background: white; border-radius: 10px; padding: 12px 10px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid #e8ecf0; position: relative; overflow: hidden; transition: transform 0.2s, box-shadow 0.2s; }
     .kpi:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
     .kpi-val { font-size: 26px; font-weight: 800; direction: ltr; display: inline-block; }
@@ -42,6 +42,7 @@ st.markdown("""
     .k-rej .kpi-val { color: #dc2626; } .k-rej .kpi-bar { background: linear-gradient(90deg, #f87171, #dc2626); }
     .k-new .kpi-val { color: #7c3aed; } .k-new .kpi-bar { background: linear-gradient(90deg, #a78bfa, #7c3aed); }
     .k-stop .kpi-val { color: #9333ea; } .k-stop .kpi-bar { background: linear-gradient(90deg, #c084fc, #9333ea); }
+    .k-sent .kpi-val { color: #0891b2; } .k-sent .kpi-bar { background: linear-gradient(90deg, #22d3ee, #0891b2); }
 
     .box { background: white; border-radius: 10px; padding: 12px; box-shadow: 0 1px 6px rgba(0,0,0,0.04); border: 1px solid #e8ecf0; margin-bottom: 8px; }
     .box-title { font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 2px solid #f1f5f9; }
@@ -208,20 +209,22 @@ df = st.session_state["df"]
 stages_done = [
     "تم الاطلاع", "إعتماد رئيس البلدية لشهادة اتمام بناء", "اعتماد رئيس الجهة",
     "تم تنفيذ التعديل", "منجز",
-    "طلب تعديل من المستفيد",
+    "طلب تعديل من المستفيد", "أعتماد رئيس القسم الفنى للقرار الفنى",
+    "اعتماد رئيس القسم الفني شهادة اتمام بناء", "تم السداد",
 ]
 stages_returned = [
-    "طلب وثائق", "ارسلت الى المستفيد", "ارجاع طلب",
-    "رد الى المهندس", "رفض شهادة اتمام بناء",
+    "طلب وثائق", "ارجاع طلب", "رد الى المهندس",
+    "رفض شهادة اتمام بناء",
 ]
+stages_sent = ["ارسلت الى المستفيد"]
 stages_rejected = ["مرفوض"]
 stages_stopped = ["ايقاف"]
 stages_in_progress = [
     "تحويل الى المراقب الفني", "تحويل الى المهندس",
-    "تحويل لبلدية", "تم السداد",
+    "تحويل لبلدية",
     "ارجاع طلب تقرير فنى الى رئيس القسم الفنى",
-    "ارجاع من المساح",     "اصدار تقرير فني للطلب المحول", "إصدار تقرير فني للطلب المحول",
-    "تحويل الطلب للقسم الفني",     "تحويل الطلب للمراقب الفني",
+    "ارجاع من المساح", "اصدار تقرير فني للطلب المحول", "إصدار تقرير فني للطلب المحول",
+    "تحويل الطلب للقسم الفني", "تحويل الطلب للمراقب الفني",
     "تحويل الطلب للمراقب الفنى لاصدار شهاده اتمام البناء",
     "تحويل الطلب لمدير الإدارة المركزية لرقابة المباني والمنشآت",
     "تحويل الى رئيس قسم الرخص (المشرف)", "استلام معد المحضر الفنى",
@@ -234,6 +237,7 @@ def classify(stage):
     s = str(stage).strip()
     if s in stages_done: return "منجز"
     if s in stages_returned: return "معاد للمستفيد"
+    if s in stages_sent: return "مرسل للمستفيد"
     if s in stages_rejected: return "مرفوض"
     if s in stages_stopped: return "ايقاف"
     if s in stages_new: return "جديد"
@@ -353,6 +357,7 @@ if flt_سنة: df_f = df_f[df_f["السنة"].isin(flt_سنة)]
 total = len(df_f)
 done = (df_f["تصنيف"] == "منجز").sum()
 returned = (df_f["تصنيف"] == "معاد للمستفيد").sum()
+sent = (df_f["تصنيف"] == "مرسل للمستفيد").sum()
 rejected = (df_f["تصنيف"] == "مرفوض").sum()
 stopped = (df_f["تصنيف"] == "ايقاف").sum()
 in_prog = (df_f["تصنيف"] == "تحت الإجراء").sum()
@@ -362,6 +367,7 @@ unspecified = (df_f["تصنيف"] == "غير محدد").sum()
 total_done = done + returned + rejected + stopped
 done_pct = round(done / total * 100, 1) if total else 0
 ret_pct = round(returned / total * 100, 1) if total else 0
+sent_pct = round(sent / total * 100, 1) if total else 0
 rej_pct = round(rejected / total * 100, 1) if total else 0
 stop_pct = round(stopped / total * 100, 1) if total else 0
 total_done_pct = round(total_done / total * 100, 1) if total else 0
@@ -373,14 +379,17 @@ if "مدة الإنجاز (أيام)" in df_f.columns:
     total_duration = df_f["مدة الإنجاز (أيام)"].dropna().sum()
     avg_duration = int(total_duration / total) if total > 0 else 0
 
+data_file = "data.xlsx" if os.path.exists("data.xlsx") else "data.xls"
+data_mtime = datetime.fromtimestamp(os.path.getmtime(data_file)).strftime('%Y-%m-%d %H:%M') if os.path.exists(data_file) else "غير معروف"
+
 st.markdown(f"""
 <div class="header-bar">
     <div>
         <h1>🏗️ مؤشر أداء رخص البناء</h1>
-        <p class="sub">أمانة منطقة الرياض — قطاع الغرب | آخر تحديث: {datetime.now().strftime('%Y-%m-%d %H:%M')} | {'📁 مستند مرفوع' if st.session_state.data_source == 'uploaded' else '📀 ملف افتراضي'} | إجمالي البيانات: {len(df):,} سجل</p>
+        <p class="sub">أمانة منطقة الرياض — قطاع الغرب | آخر تحديث للبيانات: {data_mtime} | إجمالي البيانات: {len(df):,} سجل</p>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
-        <span class="badge">{'📤 مرفوع' if st.session_state.data_source == 'uploaded' else '📀 افتراضي'}</span>
+        <span class="badge" style="background:rgba(34,197,94,0.2);color:#22c55e;border:1px solid rgba(34,197,94,0.3)">✅ محدث — {data_mtime}</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -389,6 +398,7 @@ st.markdown(f"""<div class="kpi-grid">
     <div class="kpi k-total"><div class="kpi-val">{total:,}</div><div class="kpi-lbl">📋 إجمالي الطلبات</div><div class="kpi-sub">في الفترة المحددة</div><div class="kpi-bar"></div></div>
     <div class="kpi k-done"><div class="kpi-val">{total_done:,}</div><div class="kpi-lbl">✅ منجز</div><div class="kpi-sub">{total_done_pct}% من الإجمالي (شامل الكل)</div><div class="kpi-bar"></div></div>
     <div class="kpi k-ret"><div class="kpi-val">{returned:,}</div><div class="kpi-lbl">🔄 معاد للمستفيد</div><div class="kpi-sub">{ret_pct}% (محسوب مع منجز)</div><div class="kpi-bar"></div></div>
+    <div class="kpi k-sent"><div class="kpi-val">{sent:,}</div><div class="kpi-lbl">📤 مرسل للمستفيد</div><div class="kpi-sub">{sent_pct}% من الإجمالي</div><div class="kpi-bar"></div></div>
     <div class="kpi k-rej"><div class="kpi-val">{rejected:,}</div><div class="kpi-lbl">❌ مرفوض</div><div class="kpi-sub">{rej_pct}% (محسوب مع منجز)</div><div class="kpi-bar"></div></div>
     <div class="kpi k-stop"><div class="kpi-val">{stopped:,}</div><div class="kpi-lbl">⏸️ ايقاف</div><div class="kpi-sub">{stop_pct}% (محسوب مع منجز)</div><div class="kpi-bar"></div></div>
     <div class="kpi k-prog"><div class="kpi-val">{in_prog:,}</div><div class="kpi-lbl">⚙️ تحت الإجراء</div><div class="kpi-sub">{in_pct}% من الإجمالي</div><div class="kpi-bar"></div></div>
@@ -402,10 +412,10 @@ st.markdown(f"""<div class="metric-row">
     <div class="metric-card"><div class="metric-val">{len(df_f[df_f['تاريخ الطلب ميلادي'].dt.year == today.year]) if 'تاريخ الطلب ميلادي' in df_f.columns and not df_f['تاريخ الطلب ميلادي'].isna().all() else 0:,}</div><div class="metric-lbl">📅 طلبات سنة {today.year}</div></div>
 </div>""", unsafe_allow_html=True)
 
-filter_labels = {"الكل": "الكل", "منجز": "✅ منجز", "معاد للمستفيد": "🔄 معاد للمستفيد", "مرفوض": "❌ مرفوض", "ايقاف": "⏸️ ايقاف", "تحت الإجراء": "⚙️ تحت الإجراء", "جديد": "🆕 جديد", "غير محدد": "❓ غير محدد"}
-filter_cols = st.columns(8)
-filter_options = ["الكل", "منجز", "معاد للمستفيد", "مرفوض", "ايقاف", "تحت الإجراء", "جديد", "غير محدد"]
-filter_counts = [total, done, returned, rejected, stopped, in_prog, new, unspecified]
+filter_labels = {"الكل": "الكل", "منجز": "✅ منجز", "معاد للمستفيد": "🔄 معاد للمستفيد", "مرسل للمستفيد": "📤 مرسل للمستفيد", "مرفوض": "❌ مرفوض", "ايقاف": "⏸️ ايقاف", "تحت الإجراء": "⚙️ تحت الإجراء", "جديد": "🆕 جديد", "غير محدد": "❓ غير محدد"}
+filter_cols = st.columns(9)
+filter_options = ["الكل", "منجز", "معاد للمستفيد", "مرسل للمستفيد", "مرفوض", "ايقاف", "تحت الإجراء", "جديد", "غير محدد"]
+filter_counts = [total, done, returned, sent, rejected, stopped, in_prog, new, unspecified]
 
 for i, (opt, cnt) in enumerate(zip(filter_options, filter_counts)):
     with filter_cols[i]:
@@ -426,7 +436,7 @@ with r1:
     st.markdown('<div class="box"><div class="box-title">🍩 توزيع الطلبات حسب التصنيف</div>', unsafe_allow_html=True)
     pie_data = df["تصنيف"].value_counts().reset_index()
     pie_data.columns = ["الحالة", "العدد"]
-    color_map_pie = {"منجز": "#15803d", "معاد للمستفيد": "#2563eb", "مرفوض": "#dc2626", "ايقاف": "#9333ea", "تحت الإجراء": "#d97706", "جديد": "#7c3aed", "غير محدد": "#94a3b8"}
+    color_map_pie = {"منجز": "#15803d", "معاد للمستفيد": "#2563eb", "مرسل للمستفيد": "#0891b2", "مرفوض": "#dc2626", "ايقاف": "#9333ea", "تحت الإجراء": "#d97706", "جديد": "#7c3aed", "غير محدد": "#94a3b8"}
     fig = px.pie(pie_data, names="الحالة", values="العدد", hole=0.55, color="الحالة", color_discrete_map=color_map_pie)
     fig.update_layout(height=220, margin=dict(l=5, r=5, t=10, b=5), showlegend=True, legend=dict(font=dict(size=9), orientation="h", y=-0.1))
     fig.update_traces(textposition='inside', textinfo='percent', textfont_size=10, marker=dict(line=dict(color='white', width=2)))
@@ -480,7 +490,7 @@ with r5:
     if "السنة" in df_f.columns:
         cat = df_f.groupby(["السنة", "تصنيف"]).size().reset_index(name="العدد")
         fig = px.bar(cat, x="السنة", y="العدد", color="تصنيف", barmode="stack",
-                     color_discrete_map={"منجز": "#15803d", "معاد للمستفيد": "#2563eb", "مرفوض": "#dc2626", "ايقاف": "#9333ea", "تحت الإجراء": "#d97706", "جديد": "#7c3aed", "غير محدد": "#94a3b8"})
+                     color_discrete_map={"منجز": "#15803d", "معاد للمستفيد": "#2563eb", "مرسل للمستفيد": "#0891b2", "مرفوض": "#dc2626", "ايقاف": "#9333ea", "تحت الإجراء": "#d97706", "جديد": "#7c3aed", "غير محدد": "#94a3b8"})
         fig.update_layout(height=210, margin=dict(l=5, r=5, t=10, b=5), legend=dict(font=dict(size=8), orientation="h", y=-0.15), xaxis=dict(tickfont=dict(size=9)), yaxis=dict(tickfont=dict(size=9)))
         st.plotly_chart(fig, use_container_width=True)
     else:
