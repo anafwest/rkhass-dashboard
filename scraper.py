@@ -12,9 +12,12 @@ PROFILE_DIR = r"C:\Users\anaf\ScraperProfile"
 PORT = 9222
 BLS_URL = "https://app.alriyadh.gov.sa/BLS/faces/home"
 SSO_URL = "https://app.alriyadh.gov.sa/SSO/loginApi"
+BLS_SSO_URL = "https://app.alriyadh.gov.sa/BLS/loginApi"
 COLS = ["طلب الخدمة","السنة","نوع الخدمة","وصف المرحلة","الجهة","تاريخ الطلب",
         "تاريخ الطلب ميلادي","رقم الرخصة","سنة الرخصة","نوع الهوية","المالك",
         "رقم الهوية","تاريخ المراجعة","تاريخ المراجعة ميلادي","رقم الطلب"]
+FROM_DATE = "1447/04/13"
+TO_DATE = "1448/12/29"
 
 def log(msg):
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -50,13 +53,20 @@ def kill_chrome():
     subprocess.run(["taskkill","/F","/IM","chrome.exe","/T"], capture_output=True)
     time.sleep(3)
 
-def cdp_type(send, text):
-    send("Input.insertText", {"text": text})
+def cdp_click(send, x, y):
+    send("Input.dispatchMouseEvent", {"type":"mousePressed","x":x,"y":y,"button":"left","clickCount":1})
+    time.sleep(0.05)
+    send("Input.dispatchMouseEvent", {"type":"mouseReleased","x":x,"y":y,"button":"left","clickCount":1})
+
+def cdp_triple_click(send, x, y):
+    send("Input.dispatchMouseEvent", {"type":"mousePressed","x":x,"y":y,"button":"left","clickCount":3})
+    time.sleep(0.05)
+    send("Input.dispatchMouseEvent", {"type":"mouseReleased","x":x,"y":y,"button":"left","clickCount":3})
 
 def start_chrome():
     kill_chrome()
     subprocess.Popen([CHROME_PATH,f"--remote-debugging-port={PORT}","--remote-allow-origins=*",
-        "--no-first-run","--disable-popup-blocking",f"--user-data-dir={PROFILE_DIR}",SSO_URL])
+        "--no-first-run","--disable-popup-blocking",f"--user-data-dir={PROFILE_DIR}",BLS_SSO_URL])
     log("انتظار Chrome...")
     for i in range(20):
         time.sleep(2)
@@ -71,7 +81,7 @@ READ_DATA_JS = """(function(){
             if(!table || t.rows.length > table.rows.length) table = t;
         }
     });
-    if(!table) return JSON.stringify({rows:[],total:0,pages:0,page:0});
+    if(!table) return JSON.stringify({rows:[],total:0,pages:0,page:0,perPage:0});
     var rows = [];
     for(var r=1; r<table.rows.length; r++){
         var tds = table.rows[r].querySelectorAll('td');
@@ -83,16 +93,37 @@ READ_DATA_JS = """(function(){
         });
         if(hasData && row.length >= 10) rows.push(row);
     }
-    var text = document.body.innerText;
-        var m = text.match(/\\(([\\d,]+)-(\\d[\\d,]+)\\s+من\\s+(\\d[\\d,]+)/);
-        var m2 = text.match(/العدد\\s*(\\d[\\d,]*)/);
-        var total = 0;
-        if(m) total = parseInt(m[3].replace(/,/g,''));
-        else if(m2) total = parseInt(m2[1].replace(/,/g,''));
-        if(!total) total = rows.length;
-        var page = m ? parseInt(m[1].replace(/,/g,'')) : 1;
-        var perPage = m ? parseInt(m[2].replace(/,/g,'')) - parseInt(m[1].replace(/,/g,'')) + 1 : rows.length;
-        var pages = total > 0 ? Math.ceil(total / perPage) : 1;
+    var rng = document.getElementById('pt1:cBodFDC:r1:0:masteraTable:t1::nb_rng');
+    var total = 0, perPage = rows.length, pages = 1, page = 1;
+    if(rng){
+        var txt = rng.innerText;
+        var m = txt.match(/\\(([\\d,]+)-(\\d[\\d,]+)\\s+من\\s+(\\d[\\d,]+)/);
+        if(m){
+            var start = parseInt(m[1].replace(/,/g,''));
+            var end = parseInt(m[2].replace(/,/g,''));
+            total = parseInt(m[3].replace(/,/g,''));
+            perPage = end - start + 1;
+            page = Math.floor(start / perPage) + 1;
+            pages = Math.ceil(total / perPage);
+        }
+    }
+    if(!total){
+        var text = document.body.innerText;
+        var m2 = text.match(/\\(([\\d,]+)-(\\d[\\d,]+)\\s+من\\s+(\\d[\\d,]+)/);
+        var m3 = text.match(/العدد\\s*(\\d[\\d,]*)/);
+        if(m2){
+            total = parseInt(m2[3].replace(/,/g,''));
+            var start = parseInt(m2[1].replace(/,/g,''));
+            var end = parseInt(m2[2].replace(/,/g,''));
+            perPage = end - start + 1;
+            page = Math.floor(start / perPage) + 1;
+            pages = Math.ceil(total / perPage);
+        } else if(m3){
+            total = parseInt(m3[1].replace(/,/g,''));
+            pages = Math.ceil(total / perPage);
+        }
+    }
+    if(!total) total = rows.length;
     return JSON.stringify({rows:rows,total:total,pages:pages,page:page,perPage:perPage});
 })()"""
 
@@ -106,6 +137,11 @@ def next_page_js(target):
                 anchors[i].click();
                 return JSON.stringify({{ok:true, next:target}});
             }}
+        }}
+        var nextBtn = document.getElementById('pt1:cBodFDC:r1:0:masteraTable:t1::nb_nx');
+        if(nextBtn){{
+            nextBtn.click();
+            return JSON.stringify({{ok:true, next:target, method:'next_btn'}});
         }}
         for(var i=0; i<anchors.length; i++){{
             var t = anchors[i].innerText.trim();
@@ -124,6 +160,50 @@ EXPORT_JS = """(function(){
     return JSON.stringify({ok:true});
 })()"""
 
+def set_date_and_search(send, from_date, to_date):
+    r = js(send, """(function(){
+        var el = document.getElementById('pt1:cBodFDC:r1:0:masteraTable:Fromdate::content');
+        if(!el) return 'not found';
+        el.focus(); el.removeAttribute('readonly');
+        var rect = el.getBoundingClientRect();
+        return JSON.stringify({x:rect.x+rect.width/2, y:rect.y+rect.height/2});
+    })()""")
+    if r and r != 'not found':
+        pos = json.loads(r)
+        time.sleep(0.3)
+        cdp_triple_click(send, pos["x"], pos["y"])
+        time.sleep(0.2)
+        send("Input.insertText", {"text": from_date})
+        time.sleep(0.5)
+        js(send, "document.body.click()")
+        time.sleep(1)
+    log(f"From date set: {from_date}")
+
+    r = js(send, """(function(){
+        var el = document.getElementById('pt1:cBodFDC:r1:0:masteraTable:Todate::content');
+        if(!el) return 'not found';
+        el.focus(); el.removeAttribute('readonly');
+        var rect = el.getBoundingClientRect();
+        return JSON.stringify({x:rect.x+rect.width/2, y:rect.y+rect.height/2});
+    })()""")
+    if r and r != 'not found':
+        pos = json.loads(r)
+        time.sleep(0.3)
+        cdp_triple_click(send, pos["x"], pos["y"])
+        time.sleep(0.2)
+        send("Input.insertText", {"text": to_date})
+        time.sleep(0.5)
+        js(send, "document.body.click()")
+        time.sleep(1)
+    log(f"To date set: {to_date}")
+
+    js(send, """(function(){
+        var btn = document.getElementById('pt1:cBodFDC:r1:0:masteraTable:search');
+        if(btn) btn.click();
+        return 'ok';
+    })()""")
+    time.sleep(5)
+
 # ==================== MAIN ====================
 log("="*60)
 log("بدء السحب التلقائي")
@@ -135,7 +215,7 @@ has_bls = any("BLS" in t.get("url","") and "login" not in t.get("url","").lower(
 if not has_bls:
     if not start_chrome():
         log("FATAL: Chrome didnt start"); sys.exit(1)
-    log("انتظار SSO..."); time.sleep(20)
+    log("انتظار Chrome+SSO..."); time.sleep(20)
 
 for attempt in range(5):
     tabs = get_tabs()
@@ -145,7 +225,7 @@ for attempt in range(5):
         if t.get("type")=="page" and "alriyadh" in u and u != "about:blank":
             ws_url = t.get("webSocketDebuggerUrl"); break
     if ws_url: break
-    log(f"انتظار تبويب البوابة... ({attempt+1})"); time.sleep(5)
+    log(f"انتظار تبويب... ({attempt+1})"); time.sleep(5)
 
 if not ws_url:
     log("FATAL: no tab"); sys.exit(1)
@@ -154,7 +234,6 @@ ws, send = connect_ws(ws_url)
 url = js(send, "document.location.href")
 log(f"متصل: {url[:100]}")
 
-# Wait for ADF to be ready
 for i in range(10):
     r = js(send, 'typeof AdfPage !== "undefined" ? "ok" : "wait"')
     if r == "ok": break
@@ -163,7 +242,6 @@ for i in range(10):
 url = js(send, "document.location.href")
 log(f"الرابط: {url[:100]}")
 
-# If we're on SSO home, navigate to BLS
 if "BLS" not in url:
     log("الانتقال لـ BLS...")
     js(send, f"window.location.href='{BLS_URL}'")
@@ -171,89 +249,69 @@ if "BLS" not in url:
     url = js(send, "document.location.href")
     log(f"بعد الانتقال: {url[:100]}")
 
-# Handle login page
-# Handle login page - try re-establishing session
 if "login" in url.lower():
     log("صفحة دخول - محاولة إعادة تأسيس الجلسة...")
-    # Go back to SSO loginApi to refresh session
-    js(send, f"window.location.href='{SSO_URL}'")
-    time.sleep(15)
+    js(send, f"window.location.href='{BLS_SSO_URL}'")
+    time.sleep(20)
     url = js(send, "document.location.href")
-    log(f"SSO: {url[:100]}")
-    # Wait for ADF
-    for i in range(8):
-        r = js(send, 'typeof AdfPage !== "undefined" ? "ok" : "wait"')
-        if r == "ok": break
-        time.sleep(3)
-    # Now try BLS again
-    js(send, f"window.location.href='{BLS_URL}'")
-    time.sleep(15)
-    url = js(send, "document.location.href")
-    log(f"BLS retry: {url[:100]}")
+    log(f"BLS SSO retry: {url[:100]}")
 
 if "login" in url.lower():
     log("ما نقدر نتجاوز صفحة الدخول"); ws.close(); sys.exit(1)
 
-# Wait for BLS page to fully load
+has_search_form = js(send, """(function(){
+    return document.getElementById('pt1:cBodFDC:r1:0:masteraTable:Fromdate::content') ? 'yes' : 'no';
+})()""")
+log(f"صفحة البحث: {has_search_form}")
+
+if has_search_form == 'no':
+    log("البحث عن رابط BLS8510 في القائمة...")
+    nav_result = js(send, """(function(){
+        var all = document.querySelectorAll('h4, h5, h6, a, span, div');
+        for(var i=0;i<all.length;i++){
+            var t = (all[i].innerText||'').trim();
+            if(t === 'BLS8510 - استعلام عن بيانات الطلبات' || t.indexOf('BLS8510') >= 0){
+                var rect = all[i].getBoundingClientRect();
+                if(rect.width > 0 && rect.height > 0){
+                    return JSON.stringify({x:rect.x+rect.width/2, y:rect.y+rect.height/2, text:t.substring(0,50)});
+                }
+            }
+        }
+        for(var i=0;i<all.length;i++){
+            var t = (all[i].innerText||'').trim();
+            if(t.indexOf('BLS8500') >= 0 || t.indexOf('الاستعلامات') >= 0){
+                var rect = all[i].getBoundingClientRect();
+                if(rect.width > 0 && rect.height > 0){
+                    return JSON.stringify({x:rect.x+rect.width/2, y:rect.y+rect.height/2, text:t.substring(0,50)});
+                }
+            }
+        }
+        return 'not found';
+    })()""")
+    log(f"نتيجة البحث: {nav_result[:100]}")
+
+    if nav_result != 'not found':
+        pos = json.loads(nav_result)
+        cdp_click(send, pos["x"], pos["y"])
+        log(f"نقر على: {pos['text']}")
+        time.sleep(8)
+
+        has_search_form = js(send, """(function(){
+            return document.getElementById('pt1:cBodFDC:r1:0:masteraTable:Fromdate::content') ? 'yes' : 'no';
+        })()""")
+        log(f"صفحة البحث بعد التنقل: {has_search_form}")
+
+if has_search_form == 'no':
+    log("ERROR: لا يمكن الوصول لصفحة البحث"); ws.close(); sys.exit(1)
+
 for i in range(6):
     info = json.loads(js(send, READ_DATA_JS))
     if info.get("rows"): break
     log(f"انتظار بيانات... ({i+1})"); time.sleep(5)
 
 if not info.get("rows"):
-    log("الجدول فاضي - ضبط التواريخ والبحث...")
-    from_date = "1447/04/13"
-    to_date = "1448/12/29"
-
-    # Focus From date, get position, triple-click to select, type
-    r = js(send, """(function(){
-        var el = document.getElementById('pt1:cBodFDC:r1:0:masteraTable:Fromdate::content');
-        if(!el) return 'not found';
-        el.focus();
-        el.removeAttribute('readonly');
-        var rect = el.getBoundingClientRect();
-        return JSON.stringify({x:rect.x+rect.width/2, y:rect.y+rect.height/2});
-    })()""")
-    if r and r != 'not found':
-        pos = json.loads(r)
-        time.sleep(0.3)
-        send("Input.dispatchMouseEvent", {"type":"mousePressed", "x":pos["x"], "y":pos["y"], "button":"left", "clickCount":3})
-        send("Input.dispatchMouseEvent", {"type":"mouseReleased", "x":pos["x"], "y":pos["y"], "button":"left", "clickCount":3})
-        time.sleep(0.2)
-        send("Input.insertText", {"text": from_date})
-        time.sleep(0.5)
-        js(send, "document.body.click()")
-        time.sleep(1)
-    log(f"From date set: {from_date}")
-
-    # Focus To date, get position, triple-click to select, type
-    r = js(send, """(function(){
-        var el = document.getElementById('pt1:cBodFDC:r1:0:masteraTable:Todate::content');
-        if(!el) return 'not found';
-        el.focus();
-        el.removeAttribute('readonly');
-        var rect = el.getBoundingClientRect();
-        return JSON.stringify({x:rect.x+rect.width/2, y:rect.y+rect.height/2});
-    })()""")
-    if r and r != 'not found':
-        pos = json.loads(r)
-        time.sleep(0.3)
-        send("Input.dispatchMouseEvent", {"type":"mousePressed", "x":pos["x"], "y":pos["y"], "button":"left", "clickCount":3})
-        send("Input.dispatchMouseEvent", {"type":"mouseReleased", "x":pos["x"], "y":pos["y"], "button":"left", "clickCount":3})
-        time.sleep(0.2)
-        send("Input.insertText", {"text": to_date})
-        time.sleep(0.5)
-        js(send, "document.body.click()")
-        time.sleep(1)
-    log(f"To date set: {to_date}")
-
-    # Click search
-    js(send, """(function(){
-        var btn = document.getElementById('pt1:cBodFDC:r1:0:masteraTable:search');
-        if(btn) btn.click();
-        return 'ok';
-    })()""")
-    time.sleep(10)
+    log("ضبط التواريخ والبحث...")
+    set_date_and_search(send, FROM_DATE, TO_DATE)
     for i in range(6):
         info = json.loads(js(send, READ_DATA_JS))
         if info.get("rows"): break
@@ -263,22 +321,21 @@ if not info.get("rows"):
     log("ERROR: لا توجد بيانات"); ws.close(); sys.exit(1)
 
 total = info["total"]; pages = info["pages"]
-log(f"بيانات: {total} سجل، {pages} صفحة")
+log(f"بيانات: {total} سجل، {pages} صفحة ({info['perPage']} لكل صفحة)")
 
-# Collect all pages
 all_rows = list(info["rows"])
-page_num = 1
+page_num = info["page"]
 streak = 0
-log(f"جمع: صفحة 1/{pages} ({len(all_rows)} صف)")
+log(f"جمع: صفحة {page_num}/{pages} ({len(all_rows)} صف)")
 
 while page_num < pages:
     next_page = page_num + 1
     r = json.loads(js(send, next_page_js(next_page)))
     if "error" in r:
         streak += 1
-        if streak > 5: log(f"توقف: 5 أخطاء"); break
+        if streak > 5: log(f"توقف: 5 أخطاء متتالية"); break
         time.sleep(3); continue
-    time.sleep(2)
+    time.sleep(0.5)
     info = json.loads(js(send, READ_DATA_JS))
     rows = info.get("rows",[])
     if not rows:
