@@ -1,39 +1,79 @@
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Images
 *.png
 *.jpg
 *.jpeg
-*.crdownload
-elements.json
-page_source.html
-page_screenshot.png
-.streamlit/secrets.toml
-data.htm
+*.gif
+*.bmp
+
+# Data files (contain PII - NEVER commit)
+data.xlsx
 data.xls
+data.htm
+data.csv
+*.bak
+backups/
+
+# Scraper / Session files
+ScraperProfile/
 chrome_profile/
 TempChromeProfile/
-ScraperProfile/
-auth_page.html
 cookies.txt
-explore.py
+login_headers.txt
+login_headers2.txt
+auth_page.html
+
+# Logs
+scraper_log.txt
+streamlit_log.txt
+test_error.txt
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Test / Debug files
+test_*.py
+debug_*.py
+explore*.py
+check_*.py
+clear_search.py
+wait_adf.py
+scrape_now.py
+process_file.py
+dashboard_test.py
+remove_dupes.py
+*.txt
+!requirements.txt
+
+# Misc
+elements.json
+page_source.html
+report.html
+*.crdownload
 found_page.html
 login_api.html
 login_api2.html
-login_headers.txt
-login_headers2.txt
-process_file.py
-report.html
-scrape_now.py
-test_cdp.py
-scraper_log.txt
-test_*.py
-debug_*.py
-explore_*.py
-clear_search.py
-wait_adf.py
-check_bls.py
-streamlit_log.txt
-test_error.txt
-dashboard_test.py
-all_stages.txt
-verify.txt
+form_app.png
+found_page.png
+page_screenshot.png
+sso_test.png
