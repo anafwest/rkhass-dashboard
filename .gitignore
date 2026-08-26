@@ -32,3 +32,8 @@ explore_*.py
 clear_search.py
 wait_adf.py
 check_bls.py
+streamlit_log.txt
+test_error.txt
+dashboard_test.py
+all_stages.txt
+verify.txt
