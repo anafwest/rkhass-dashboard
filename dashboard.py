@@ -80,6 +80,10 @@ st.markdown("""
     .filter-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
     .filter-toggle { background: #0d3320; color: white; border: none; border-radius: 8px; padding: 6px 16px 6px 12px; font-size: 13px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; }
     .filter-toggle:hover { background: #1a5c3a; }
+    .ext-link { display: block; text-align: center; background: white; color: #0d3320 !important; text-decoration: none !important; border: 1px solid #15803d; border-radius: 8px; padding: 6px 10px; font-size: 12px; font-weight: 700; box-shadow: 0 1px 5px rgba(0,0,0,0.05); transition: all 0.2s; }
+    .ext-link:hover { background: #15803d; color: white !important; }
+    button[kind="secondary"] { background: white !important; color: #0d3320 !important; border: 1px solid #15803d !important; font-size: 13px !important; font-weight: 700 !important; border-radius: 8px !important; }
+    button[kind="secondary"]:hover { background: #e8f5ec !important; }
     button[kind="primary"] { background: #0d3320 !important; color: white !important; border: none !important; font-size: 13px !important; font-weight: 700 !important; border-radius: 8px !important; padding: 6px 18px !important; gap: 6px !important; }
     button[kind="primary"]:hover { background: #1a5c3a !important; }
 </style>
@@ -92,6 +96,162 @@ if "show_filters" not in st.session_state:
     st.session_state.show_filters = False
 if "data_source" not in st.session_state:
     st.session_state.data_source = "none"
+if "page" not in st.session_state:
+    st.session_state.page = "main"
+
+# ======================== شريط التنقل بين الصفحات ==================
+st.markdown('<div class="section-title">🌐 دوائر النظامين — يُفتحان في تبويب جديد</div>', unsafe_allow_html=True)
+ext_c1, ext_c2, ext_c3, ext_c4 = st.columns(4)
+with ext_c1:
+    st.markdown('<a class="ext-link" href="https://app.alriyadh.gov.sa/BLS/faces/home" target="_blank">🏗️ نظام BLS الرسمي</a>', unsafe_allow_html=True)
+with ext_c2:
+    st.markdown('<a class="ext-link" href="https://ups-backoffice.alriyadh.gov.sa/ar/building-license-department?activeTab=requests" target="_blank">📦 نظام UPS الرسمي</a>', unsafe_allow_html=True)
+with ext_c3:
+    st.markdown('<a class="ext-link" href="https://github.com/anafwest/rkhass-dashboard" target="_blank">📚 مستودع المشروع</a>', unsafe_allow_html=True)
+with ext_c4:
+    st.markdown('<a class="ext-link" href="https://rkhass-dashboard-kp2hp3jyvabdf5baj6rey2.streamlit.app" target="_blank">🚀 الداشبورد المنشور</a>', unsafe_allow_html=True)
+
+st.markdown('<div class="section-title">📊 لوحات التحليل الداخلية</div>', unsafe_allow_html=True)
+nav_pages = {"main": "🏗️ لوحة BLS", "ups": "📦 لوحة UPS"}
+nav_cols = st.columns(2)
+for i, (key, label) in enumerate(nav_pages.items()):
+    with nav_cols[i]:
+        is_active = st.session_state.page == key
+        if st.button(label, key=f"nav_{key}", use_container_width=True, type="primary" if is_active else "secondary"):
+            st.session_state.page = key
+            st.rerun()
+
+st.markdown(f'<div class="footer" style="margin-top:0;padding:4px 0;">الصفحة النشطة: {nav_pages[st.session_state.page]}</div>', unsafe_allow_html=True)
+
+
+# ======================== صفحة طلبات النظام (UPS) ===================
+if st.session_state.page == "ups":
+    st.markdown("""
+<div class="header-bar">
+    <div>
+        <h1>📦 متابعة طلبات قسم رخص البناء — نظام التصاريح الموحد</h1>
+        <p class="sub">الطلبات القائمة حالياً في نظام UPS | البيانات: ups_requests.xlsx</p>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+    ups_file = "ups_requests.xlsx"
+    if not os.path.exists(ups_file):
+        st.warning("⚠️ ملف ups_requests.xlsx غير موجود — شغّل ups_scraper.py أولاً")
+        st.stop()
+
+    try:
+        ups_df = pd.read_excel(ups_file)
+    except Exception as e:
+        st.error(f"خطأ في قراءة ملف UPS: {e}")
+        st.stop()
+
+    ups_df = ups_df.copy().fillna("")
+    for col in ups_df.columns:
+        ups_df[col] = ups_df[col].astype(str).str.strip().replace({"nan": "", "None": ""})
+
+    import re
+
+    # استخراج السنة الهجرية للتجميع (1448 / 1447 ...)
+    def extract_hijri_year(date_str):
+        m = re.search(r"(\d{3,4})\s*هـ", str(date_str))
+        if m:
+            return "هـ " + m.group(1)
+        return "غير محدد"
+
+    ups_df["السنة الهجرية"] = ups_df["تاريخ الطلب"].apply(extract_hijri_year)
+
+    status_labels = {
+        "مكتمل": "✅ مكتمل", "استكمال التعديلات": "🔄 استكمال التعديلات",
+        "مرفوض": "❌ مرفوض", "قيد العمل - المهندس": "⚙️ قيد العمل - المهندس",
+        "بانتظار السداد": "💳 بانتظار السداد", "ملغي": "⛔ ملغي",
+        "قيد العمل - مشرف رخص البناء": "⚙️ قيد العمل - مشرف رخص البناء",
+    }
+
+    total_ups = len(ups_df)
+    done_ups = (ups_df["حالة الطلب"] == "مكتمل").sum()
+    inprog_ups = ups_df["حالة الطلب"].str.contains("قيد العمل", na=False).sum()
+    pending_ups = (ups_df["حالة الطلب"] == "بانتظار السداد").sum()
+    amend_ups = (ups_df["حالة الطلب"] == "استكمال التعديلات").sum()
+    rej_ups = (ups_df["حالة الطلب"] == "مرفوض").sum()
+    cancel_ups = (ups_df["حالة الطلب"] == "ملغي").sum()
+
+    st.markdown(f"""<div class="kpi-grid">
+        <div class="kpi k-total"><div class="kpi-val">{total_ups:,}</div><div class="kpi-lbl">📋 إجمالي الطلبات</div><div class="kpi-sub">في النظام حالياً</div><div class="kpi-bar"></div></div>
+        <div class="kpi k-done"><div class="kpi-val">{done_ups:,}</div><div class="kpi-lbl">✅ مكتمل</div><div class="kpi-sub">{round(done_ups/total_ups*100,1) if total_ups else 0}%</div><div class="kpi-bar"></div></div>
+        <div class="kpi k-prog"><div class="kpi-val">{inprog_ups:,}</div><div class="kpi-lbl">⚙️ قيد العمل</div><div class="kpi-sub">{round(inprog_ups/total_ups*100,1) if total_ups else 0}%</div><div class="kpi-bar"></div></div>
+        <div class="kpi k-ret"><div class="kpi-val">{amend_ups:,}</div><div class="kpi-lbl">🔄 استكمال التعديلات</div><div class="kpi-sub">{round(amend_ups/total_ups*100,1) if total_ups else 0}%</div><div class="kpi-bar"></div></div>
+        <div class="kpi k-total"><div class="kpi-val" style="color:#2563eb">{pending_ups:,}</div><div class="kpi-lbl">💳 بانتظار السداد</div><div class="kpi-sub">{round(pending_ups/total_ups*100,1) if total_ups else 0}%</div><div class="kpi-bar" style="background:#2563eb"></div></div>
+        <div class="kpi k-rej"><div class="kpi-val">{rej_ups:,}</div><div class="kpi-lbl">❌ مرفوض</div><div class="kpi-sub">{round(rej_ups/total_ups*100,1) if total_ups else 0}%</div><div class="kpi-bar"></div></div>
+        <div class="kpi k-stop"><div class="kpi-val" style="color:#64748b">{cancel_ups:,}</div><div class="kpi-lbl">⛔ ملغي</div><div class="kpi-sub">{round(cancel_ups/total_ups*100,1) if total_ups else 0}%</div><div class="kpi-bar" style="background:#94a3b8"></div></div>
+    </div>""", unsafe_allow_html=True)
+
+    st.markdown('<div class="section-title">🔍 تصفية الطلبات</div>', unsafe_allow_html=True)
+    fc1, fc2, fc3, fc4 = st.columns(4)
+    with fc1:
+        flt_status = st.multiselect("حالة الطلب", sorted(ups_df["حالة الطلب"].unique()), default=None, placeholder="الكل")
+    with fc2:
+        flt_service = st.multiselect("نوع الخدمة", sorted(ups_df["نوع الخدمة"].unique()), default=None, placeholder="الكل")
+    with fc3:
+        flt_area = st.multiselect("الحي", sorted(ups_df["الحي"].unique()), default=None, placeholder="الكل")
+    with fc4:
+        flt_year = st.multiselect("السنة الهجرية", sorted(ups_df["السنة الهجرية"].unique()), default=None, placeholder="الكل")
+    search_term = st.text_input("🔎 بحث برقم الطلب أو رقم الرخصة أو اسم المستفيد", placeholder="مثال: BLS-LR268184")
+
+    ups_filtered = ups_df.copy()
+    if flt_status: ups_filtered = ups_filtered[ups_filtered["حالة الطلب"].isin(flt_status)]
+    if flt_service: ups_filtered = ups_filtered[ups_filtered["نوع الخدمة"].isin(flt_service)]
+    if flt_area: ups_filtered = ups_filtered[ups_filtered["الحي"].isin(flt_area)]
+    if flt_year: ups_filtered = ups_filtered[ups_filtered["السنة الهجرية"].isin(flt_year)]
+    if search_term:
+        term = search_term.strip()
+        mask = (ups_filtered["رقم الطلب"].str.contains(term, case=False, na=False)
+                | ups_filtered["رقم الرخصة"].str.contains(term, case=False, na=False)
+                | ups_filtered["اسم المستفيد"].str.contains(term, case=False, na=False))
+        ups_filtered = ups_filtered[mask]
+
+    st.markdown(f'<div class="section-title">📊 التوزيعات</div>', unsafe_allow_html=True)
+    ur1, ur2, ur3 = st.columns(3)
+    with ur1:
+        st.markdown('<div class="box"><div class="box-title">🍩 توزيع الطلبات حسب الحالة</div>', unsafe_allow_html=True)
+        st_pie = ups_filtered["حالة الطلب"].value_counts().reset_index()
+        st_pie.columns = ["الحالة", "العدد"]
+        cmap = {"مكتمل": "#15803d", "استكمال التعديلات": "#2563eb", "مرفوض": "#dc2626",
+                "قيد العمل - المهندس": "#d97706", "بانتظار السداد": "#0891b2",
+                "ملغي": "#94a3b8", "قيد العمل - مشرف رخص البناء": "#d97706"}
+        fig = px.pie(st_pie, names="الحالة", values="العدد", hole=0.55, color="الحالة", color_discrete_map=cmap)
+        fig.update_layout(height=220, margin=dict(l=5, r=5, t=10, b=5), legend=dict(font=dict(size=9), orientation="h", y=-0.1))
+        fig.update_traces(textposition='inside', textinfo='percent', textfont_size=10, marker=dict(line=dict(color='white', width=2)))
+        st.plotly_chart(fig, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+    with ur2:
+        st.markdown('<div class="box"><div class="box-title">📊 توزيع الطلبات حسب نوع الخدمة</div>', unsafe_allow_html=True)
+        svc_ups = ups_filtered["نوع الخدمة"].value_counts().reset_index()
+        svc_ups.columns = ["الخدمة", "العدد"]
+        fig = px.bar(svc_ups, x="الخدمة", y="العدد", color="العدد", color_continuous_scale=["#bbf7d0", "#15803d"])
+        fig.update_layout(height=220, margin=dict(l=5, r=5, t=10, b=40), showlegend=False, xaxis=dict(tickfont=dict(size=9), tickangle=-30), yaxis=dict(tickfont=dict(size=9)))
+        st.plotly_chart(fig, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+    with ur3:
+        st.markdown('<div class="box"><div class="box-title">📈 توزيع الطلبات حسب الحالات الرئيسية والسنة</div>', unsafe_allow_html=True)
+        if "السنة الهجرية" in ups_filtered.columns:
+            status_year = ups_filtered.groupby(["السنة الهجرية", "حالة الطلب"]).size().reset_index(name="العدد")
+            fig = px.bar(status_year, x="السنة الهجرية", y="العدد", color="حالة الطلب", barmode="stack",
+                         color_discrete_map=cmap)
+            fig.update_layout(height=220, margin=dict(l=5, r=5, t=10, b=5), legend=dict(font=dict(size=8), orientation="h", y=-0.15), xaxis=dict(tickfont=dict(size=9)), yaxis=dict(tickfont=dict(size=9)))
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("لا توجد بيانات سنة")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown(f'<div class="section-title">📋 جدول الطلبات — {len(ups_filtered):,} سجل</div>', unsafe_allow_html=True)
+    st.markdown('<div class="box">', unsafe_allow_html=True)
+    ups_show = ups_filtered[["رقم الطلب", "رقم الرخصة", "تاريخ الطلب", "اسم المستفيد", "الحي", "نوع الخدمة", "حالة الطلب"]]
+    st.dataframe(ups_show, use_container_width=True, height=400)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown(f'<div class="footer">نظام التصاريح الموحد — قسم رخص البناء © {datetime.now().year} | آخر سحب عبر ups_scraper.py</div>', unsafe_allow_html=True)
+    st.stop()
 
 # ======================== دوال معالجة البيانات ======================
 def process_data(df):

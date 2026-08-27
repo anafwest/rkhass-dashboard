@@ -66,7 +66,8 @@ def cdp_triple_click(send, x, y):
 def start_chrome():
     kill_chrome()
     subprocess.Popen([CHROME_PATH,f"--remote-debugging-port={PORT}","--remote-allow-origins=*",
-        "--no-first-run","--disable-popup-blocking",f"--user-data-dir={PROFILE_DIR}",BLS_SSO_URL])
+        "--no-first-run","--disable-popup-blocking","--start-minimized",
+        f"--user-data-dir={PROFILE_DIR}",BLS_SSO_URL])
     log("انتظار Chrome...")
     for i in range(20):
         time.sleep(2)
@@ -160,49 +161,40 @@ EXPORT_JS = """(function(){
     return JSON.stringify({ok:true});
 })()"""
 
-def set_date_and_search(send, from_date, to_date):
-    r = js(send, """(function(){
-        var el = document.getElementById('pt1:cBodFDC:r1:0:masteraTable:Fromdate::content');
-        if(!el) return 'not found';
-        el.focus(); el.removeAttribute('readonly');
-        var rect = el.getBoundingClientRect();
-        return JSON.stringify({x:rect.x+rect.width/2, y:rect.y+rect.height/2});
-    })()""")
-    if r and r != 'not found':
+def set_date_field(send, fid, value):
+    """ضبط حقل تاريخ مع التحقق من القيمة وإعادة المحاولة حتى 3 مرات."""
+    for attempt in range(3):
+        r = js(send, "(function(){var el=document.getElementById('" + fid + "');if(!el)return 'nf';"
+                     "el.focus();el.removeAttribute('readonly');var x=el.getBoundingClientRect();"
+                     "return JSON.stringify({x:x.x+x.width/2,y:x.y+x.height/2});})()")
+        if not r or r == 'nf':
+            return False
         pos = json.loads(r)
-        time.sleep(0.3)
         cdp_triple_click(send, pos["x"], pos["y"])
         time.sleep(0.2)
-        send("Input.insertText", {"text": from_date})
+        send("Input.insertText", {"text": value})
         time.sleep(0.5)
         js(send, "document.body.click()")
-        time.sleep(1)
-    log(f"From date set: {from_date}")
+        time.sleep(0.8)
+        got = js(send, "var el=document.getElementById('" + fid + "'); el ? el.value : ''")
+        if got == value:
+            return True
+        log(f"  إعادة محاولة ضبط {value}: القراءة الفعلية '{got}'")
+    return False
 
-    r = js(send, """(function(){
-        var el = document.getElementById('pt1:cBodFDC:r1:0:masteraTable:Todate::content');
-        if(!el) return 'not found';
-        el.focus(); el.removeAttribute('readonly');
-        var rect = el.getBoundingClientRect();
-        return JSON.stringify({x:rect.x+rect.width/2, y:rect.y+rect.height/2});
-    })()""")
-    if r and r != 'not found':
-        pos = json.loads(r)
-        time.sleep(0.3)
-        cdp_triple_click(send, pos["x"], pos["y"])
-        time.sleep(0.2)
-        send("Input.insertText", {"text": to_date})
-        time.sleep(0.5)
-        js(send, "document.body.click()")
-        time.sleep(1)
-    log(f"To date set: {to_date}")
+def set_date_and_search(send, from_date, to_date):
+    ok_f = set_date_field(send, 'pt1:cBodFDC:r1:0:masteraTable:Fromdate::content', from_date)
+    ok_t = set_date_field(send, 'pt1:cBodFDC:r1:0:masteraTable:Todate::content', to_date)
+    log(f"From date set ({from_date}): {ok_f} | To date set ({to_date}): {ok_t}")
+    time.sleep(1)
 
     js(send, """(function(){
         var btn = document.getElementById('pt1:cBodFDC:r1:0:masteraTable:search');
         if(btn) btn.click();
         return 'ok';
     })()""")
-    time.sleep(5)
+    time.sleep(6)
+    return ok_f and ok_t
 
 # ==================== MAIN ====================
 log("="*60)
@@ -259,69 +251,84 @@ if "login" in url.lower():
 if "login" in url.lower():
     log("ما نقدر نتجاوز صفحة الدخول"); ws.close(); sys.exit(1)
 
-has_search_form = js(send, """(function(){
-    return document.getElementById('pt1:cBodFDC:r1:0:masteraTable:Fromdate::content') ? 'yes' : 'no';
-})()""")
-log(f"صفحة البحث: {has_search_form}")
+def find_clickable(send, pattern):
+    JS = ("(function(){var best=null,bb=1e18;document.querySelectorAll('a,span,div,td,li,h4,h5,h6').forEach(function(e){"
+          "var t=(e.innerText||'').replace(/\\s+/g,' ').trim();"
+          "if(new RegExp('" + pattern + "').test(t)){var r=e.getBoundingClientRect();var area=r.width*r.height;"
+          "if(area>0&&area<90000&&area<bb&&t.length<120){bb=area;best={x:r.x+r.width/2,y:r.y+r.height/2,t:t.substring(0,60)};}}});"
+          "return best?JSON.stringify(best):'not found';})()")
+    r = js(send, JS)
+    if isinstance(r, str) and r != 'not found':
+        try: return json.loads(r)
+        except Exception: return None
+    return None
 
-if has_search_form == 'no':
-    log("البحث عن رابط BLS8510 في القائمة...")
-    nav_result = js(send, """(function(){
-        var all = document.querySelectorAll('h4, h5, h6, a, span, div');
-        for(var i=0;i<all.length;i++){
-            var t = (all[i].innerText||'').trim();
-            if(t === 'BLS8510 - استعلام عن بيانات الطلبات' || t.indexOf('BLS8510') >= 0){
-                var rect = all[i].getBoundingClientRect();
-                if(rect.width > 0 && rect.height > 0){
-                    return JSON.stringify({x:rect.x+rect.width/2, y:rect.y+rect.height/2, text:t.substring(0,50)});
-                }
-            }
-        }
-        for(var i=0;i<all.length;i++){
-            var t = (all[i].innerText||'').trim();
-            if(t.indexOf('BLS8500') >= 0 || t.indexOf('الاستعلامات') >= 0){
-                var rect = all[i].getBoundingClientRect();
-                if(rect.width > 0 && rect.height > 0){
-                    return JSON.stringify({x:rect.x+rect.width/2, y:rect.y+rect.height/2, text:t.substring(0,50)});
-                }
-            }
-        }
-        return 'not found';
-    })()""")
-    log(f"نتيجة البحث: {nav_result[:100]}")
+def has_search_form_js(send):
+    return js(send, "document.getElementById('pt1:cBodFDC:r1:0:masteraTable:Fromdate::content') ? 'yes' : 'no'") == 'yes'
 
-    if nav_result != 'not found':
-        pos = json.loads(nav_result)
-        cdp_click(send, pos["x"], pos["y"])
-        log(f"نقر على: {pos['text']}")
-        time.sleep(8)
+SCREEN_TITLES_JS = ("(function(){var o=[];document.querySelectorAll('h1,h2,h3,legend,strong,.af_panelWindow_title')"
+                    ".forEach(function(e){var t=(e.innerText||'').trim();if(t&&t.length<80)o.push(t);});return o.join(' | ');})()")
 
-        has_search_form = js(send, """(function(){
-            return document.getElementById('pt1:cBodFDC:r1:0:masteraTable:Fromdate::content') ? 'yes' : 'no';
-        })()""")
-        log(f"صفحة البحث بعد التنقل: {has_search_form}")
+def screen_is_8510(send):
+    t = js(send, SCREEN_TITLES_JS) or ""
+    return ("BLS8510" in t) and has_search_form_js(send)
 
-if has_search_form == 'no':
-    log("ERROR: لا يمكن الوصول لصفحة البحث"); ws.close(); sys.exit(1)
+def ensure_8510(send):
+    """الوصول لشاشة BLS8510 مع التحقق من هويتها، مع إعادة محاولة بعد العودة للرئيسية."""
+    for attempt in range(4):
+        if screen_is_8510(send):
+            log(f"شاشة BLS8510 مؤكدة (المحاولة {attempt+1})")
+            return True
+        if attempt > 0 or not has_search_form_js(send):
+            url = js(send, "document.location.href") or ""
+            if "home" not in url:
+                js(send, f"window.location.href='{BLS_URL}'")
+                time.sleep(7)
+        steps = [
+            ("BLS\\s*8000", "BLS8000"),
+            ("BLS\\s*8500|الاستعلامات", "BLS8500"),
+            ("BLS\\s*8510|استعلام عن بيانات الطلبات", "BLS8510"),
+        ]
+        for pat, desc in steps:
+            pos = find_clickable(send, pat)
+            if pos:
+                cdp_click(send, pos["x"], pos["y"])
+                log(f"نقر: {desc} -> {pos['t'][:40]}")
+                time.sleep(3)
+            else:
+                log(f"عنصر غير موجود: {desc}")
+        time.sleep(5)
+        if screen_is_8510(send):
+            log("شاشة BLS8510 مؤكدة بعد التنقل")
+            return True
+    log(f"يكمن النص الحالي: {(js(send, SCREEN_TITLES_JS) or '')[:100]}")
+    return False
+
+if not ensure_8510(send):
+    log("ERROR: تعذر الوصول لشاشة BLS8510"); ws.close(); sys.exit(1)
+
+log("ضبط التواريخ والبحث...")
+ok_dates = set_date_and_search(send, FROM_DATE, TO_DATE)
+if not ok_dates:
+    log("WARN: لم يتأكد ضبط التواريخ — إعادة المحاولة مرة واحدة")
+    time.sleep(3)
+    ok_dates = set_date_and_search(send, FROM_DATE, TO_DATE)
 
 for i in range(6):
     info = json.loads(js(send, READ_DATA_JS))
     if info.get("rows"): break
-    log(f"انتظار بيانات... ({i+1})"); time.sleep(5)
-
-if not info.get("rows"):
-    log("ضبط التواريخ والبحث...")
-    set_date_and_search(send, FROM_DATE, TO_DATE)
-    for i in range(6):
-        info = json.loads(js(send, READ_DATA_JS))
-        if info.get("rows"): break
-        log(f"انتظار بيانات بعد البحث... ({i+1})"); time.sleep(5)
+    log(f"انتظار بيانات بعد البحث... ({i+1})"); time.sleep(5)
 
 if not info.get("rows"):
     log("ERROR: لا توجد بيانات"); ws.close(); sys.exit(1)
 
 total = info["total"]; pages = info["pages"]
 log(f"بيانات: {total} سجل، {pages} صفحة ({info['perPage']} لكل صفحة)")
+
+# حارس: إذا فشل فلتر التواريخ وعادت كل الفترة (أكثر من المتوقع بكثير) نلغي التشغيل لإعادة المحاولة
+if total > 20000:
+    log(f"WARN: إجمالي {total} أكبر من المتوقع (~12000) — فلتر التواريخ لم يُطبق على الأرجح")
+    ws.close(); sys.exit(2)
 
 all_rows = list(info["rows"])
 page_num = info["page"]
@@ -335,7 +342,7 @@ while page_num < pages:
         streak += 1
         if streak > 5: log(f"توقف: 5 أخطاء متتالية"); break
         time.sleep(3); continue
-    time.sleep(0.5)
+    time.sleep(0.25)
     info = json.loads(js(send, READ_DATA_JS))
     rows = info.get("rows",[])
     if not rows:
@@ -344,7 +351,12 @@ while page_num < pages:
     else:
         streak = 0; all_rows.extend(rows)
     page_num += 1
-    if page_num % 50 == 0: log(f"صفحة {page_num}/{pages} ({len(all_rows)} صف)")
+    if page_num % 500 == 0:
+        log(f"صفحة {page_num}/{pages} ({len(all_rows)} صف) — حفظ نقطة تحقق")
+        try:
+            pd.DataFrame(all_rows, columns=COLS[:len(all_rows[0])]).to_excel("data.xlsx", index=False, engine="openpyxl")
+        except Exception as e:
+            log(f"فشل نقطة التحقق: {e}")
 
 log(f"تم جمع {len(all_rows)} صف من {total}")
 
