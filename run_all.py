@@ -33,10 +33,16 @@ def run_script(name, label, retries, gap=90):
                                capture_output=True, text=True, encoding="utf-8",
                                errors="replace", timeout=5400)
             tail = (r.stdout + r.stderr)[-300:]
-            entry.update({"status": "OK", "attempt": attempt, "secs": round(time.time() - t0)})
-            append(entry)
-            write_log(f"{label}: نجاح في المحاولة {attempt} ({entry['secs']} ثانية)")
-            return True
+            if r.returncode != 0:
+                entry.update({"status": "FAIL", "attempt": attempt, "rc": r.returncode,
+                              "secs": round(time.time() - t0), "tail": tail})
+                append(entry)
+                write_log(f"{label}: فشل في المحاولة {attempt} (رمز {r.returncode})")
+            else:
+                entry.update({"status": "OK", "attempt": attempt, "secs": round(time.time() - t0)})
+                append(entry)
+                write_log(f"{label}: نجاح في المحاولة {attempt} ({entry['secs']} ثانية)")
+                return True
         except subprocess.TimeoutExpired:
             entry.update({"status": "TIMEOUT", "attempt": attempt, "secs": round(time.time() - t0)})
             append(entry)

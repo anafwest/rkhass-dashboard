@@ -95,7 +95,7 @@ READ_DATA_JS = """(function(){
         if(hasData && row.length >= 10) rows.push(row);
     }
     var rng = document.getElementById('pt1:cBodFDC:r1:0:masteraTable:t1::nb_rng');
-    var total = 0, perPage = rows.length, pages = 1, page = 1;
+    var total = 0, perPage = rows.length, pages = 1, page = 1, start = 0;
     if(rng){
         var txt = rng.innerText;
         var m = txt.match(/\\(([\\d,]+)-(\\d[\\d,]+)\\s+من\\s+(\\d[\\d,]+)/);
@@ -125,7 +125,7 @@ READ_DATA_JS = """(function(){
         }
     }
     if(!total) total = rows.length;
-    return JSON.stringify({rows:rows,total:total,pages:pages,page:page,perPage:perPage});
+    return JSON.stringify({rows:rows,total:total,pages:pages,page:page,perPage:perPage,start:start});
 })()"""
 
 def next_page_js(target):
@@ -332,6 +332,7 @@ if total > 20000:
 
 all_rows = list(info["rows"])
 page_num = info["page"]
+last_start = info.get("start", 0)
 streak = 0
 log(f"جمع: صفحة {page_num}/{pages} ({len(all_rows)} صف)")
 
@@ -340,10 +341,18 @@ while page_num < pages:
     r = json.loads(js(send, next_page_js(next_page)))
     if "error" in r:
         streak += 1
-        if streak > 5: log(f"توقف: 5 أخطاء متتالية"); break
+        if streak > 5: log(f"توقف: 5 أخطاء تنقل متتالية"); break
         time.sleep(3); continue
-    time.sleep(0.25)
+    time.sleep(0.5)
     info = json.loads(js(send, READ_DATA_JS))
+    nxt_start = info.get("start", 0)
+    if nxt_start <= last_start:
+        streak += 1
+        if streak > 5:
+            log(f"توقف: التقدم توقف عند صفحة {next_page} (بداية {nxt_start})")
+            break
+        time.sleep(2); continue
+    last_start = nxt_start
     rows = info.get("rows",[])
     if not rows:
         streak += 1
@@ -359,6 +368,12 @@ while page_num < pages:
             log(f"فشل نقطة التحقق: {e}")
 
 log(f"تم جمع {len(all_rows)} صف من {total}")
+
+if len(all_rows) < total:
+    log(f"ERROR: الجمع ناقص {len(all_rows)} من أصل {total} — ستتم إعادة المحاولة")
+    try: ws.close()
+    except Exception: pass
+    sys.exit(3)
 
 if len(all_rows) < 1:
     log(f"ERROR: لا توجد بيانات على الإطلاق"); sys.exit(1)

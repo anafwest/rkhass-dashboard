@@ -1,4 +1,4 @@
-import ssl, os, urllib3, time, json, sys, re
+import ssl, os, urllib3, time, json, sys, re, subprocess
 urllib3.disable_warnings()
 ssl._create_default_https_context = ssl._create_unverified_context
 sys.stdout.reconfigure(encoding='utf-8')
@@ -7,6 +7,8 @@ import websocket, urllib.request, pandas as pd
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 os.chdir(PROJECT_DIR)
 PORT = 9222
+CHROME_PATH = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+PROFILE_DIR = r"C:\Users\anaf\ScraperProfile"
 BASE_URL = "https://ups-backoffice.alriyadh.gov.sa/ar/building-license-department?activeTab=requests"
 
 COLS = ["رقم الطلب","رقم الرخصة","تاريخ الطلب","اسم المستفيد","الحي","حالة الطلب","نوع الخدمة"]
@@ -86,17 +88,31 @@ log("بدء سحب UPS - طلبات رخص البناء")
 
 tabs = get_tabs()
 ws_url = None
+u = ""
 for t in tabs:
     u = t.get("url","")
     if t.get("type")=="page" and "ups-backoffice" in u:
         ws_url = t.get("webSocketDebuggerUrl"); break
+
 if not ws_url:
-    for t in tabs:
-        if t.get("type")=="page" and "alriyadh" in u:
-            t = t
-            u = t.get("url","")
-            if u and "alriyadh" in u:
-                ws_url = t.get("webSocketDebuggerUrl"); break
+    try:
+        import urllib.parse
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{PORT}/json/new?{urllib.parse.quote(BASE_URL, safe='')}", method="PUT")
+        nb = json.loads(urllib.request.urlopen(req, timeout=10).read())
+        ws_url = nb.get("webSocketDebuggerUrl")
+        log("أنشأتُ تبويباً جديداً لبوابة UPS")
+    except Exception as e:
+        log(f"تعذر إنشاء تبويب، تشغيل كروم جديد: {e}")
+        subprocess.Popen([CHROME_PATH, f"--remote-debugging-port={PORT}", "--remote-allow-origins=*",
+                          "--no-first-run", "--start-minimized", f"--user-data-dir={PROFILE_DIR}", BASE_URL])
+        for i in range(20):
+            time.sleep(2)
+            for t in get_tabs():
+                if t.get("type")=="page" and "ups-backoffice" in t.get("url",""):
+                    ws_url = t.get("webSocketDebuggerUrl"); break
+            if ws_url: break
+
 if not ws_url:
     log("FATAL: لا يوجد تبويب للبوابة"); sys.exit(1)
 
@@ -140,6 +156,9 @@ if all_rows:
     log(f"حفظ ups_requests.xlsx ({os.path.getsize('ups_requests.xlsx')//1024} KB)")
 else:
     log("ERROR: لا توجد بيانات")
+    try: ws.close()
+    except Exception: pass
+    sys.exit(1)
 
 ws.close()
 log("=== انتهت عملية UPS ===")
