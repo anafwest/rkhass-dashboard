@@ -1,4 +1,4 @@
-import ssl, os, urllib3, time, json, sys, glob
+import ssl, os, urllib3, time, json, sys, glob, re
 urllib3.disable_warnings()
 ssl._create_default_https_context = ssl._create_unverified_context
 sys.stdout.reconfigure(encoding='utf-8')
@@ -84,8 +84,9 @@ READ_DATA_JS = """(function(){
     });
     if(!table) return JSON.stringify({rows:[],total:0,pages:0,page:0,perPage:0});
     var rows = [];
-    for(var r=1; r<table.rows.length; r++){
-        var tds = table.rows[r].querySelectorAll('td');
+    var bodyRows = (table.tBodies && table.tBodies.length) ? table.tBodies[0].rows : table.rows;
+    for(var r=0; r<bodyRows.length; r++){
+        var tds = bodyRows[r].querySelectorAll('td');
         var row = [], hasData = false;
         tds.forEach(function(td){
             var txt = (td.innerText||'').trim();
@@ -131,10 +132,12 @@ READ_DATA_JS = """(function(){
 def next_page_js(target):
     return f"""(function(){{
         var target = {target};
+        var g = '٠١٢٣٤٥٦٧٨٩';
+        var ar = target.toString().replace(/[0-9]/g, function(d){{ return g[+d]; }});
         var anchors = document.querySelectorAll('a');
         for(var i=0; i<anchors.length; i++){{
             var t = anchors[i].innerText.trim();
-            if(t === String(target) && anchors[i].id && anchors[i].id.indexOf('nb_pg') >= 0){{
+            if((t === String(target) || t === ar) && anchors[i].id && anchors[i].id.indexOf('nb_pg') >= 0){{
                 anchors[i].click();
                 return JSON.stringify({{ok:true, next:target}});
             }}
@@ -146,7 +149,7 @@ def next_page_js(target):
         }}
         for(var i=0; i<anchors.length; i++){{
             var t = anchors[i].innerText.trim();
-            if(t === String(target) && anchors[i].href && anchors[i].href.indexOf('void') >= 0){{
+            if((t === String(target) || t === ar) && anchors[i].href && anchors[i].href.indexOf('void') >= 0){{
                 anchors[i].click();
                 return JSON.stringify({{ok:true, next:target}});
             }}
@@ -162,13 +165,15 @@ EXPORT_JS = """(function(){
 })()"""
 
 FIRST_PAGE_JS = """(function(){
-    var b = document.getElementById('pt1:cBodFDC:r1:0:masteraTable:t1::nb_fs');
-    if(b){ b.click(); return JSON.stringify({ok:true, method:'fs'}); }
-    var anchors = document.querySelectorAll('a');
-    for(var i=0; i<anchors.length; i++){
-        if(anchors[i].innerText.trim() === '1' && anchors[i].id && anchors[i].id.indexOf('nb_pg') >= 0){
-            anchors[i].click(); return JSON.stringify({ok:true, method:'anchor'});
-        }
+    var fr = document.getElementById('pt1:cBodFDC:r1:0:masteraTable:t1::nb_fr');
+    if(fr){ fr.click(); return JSON.stringify({ok:true, method:'fr'}); }
+    var inp = document.getElementById('pt1:cBodFDC:r1:0:masteraTable:t1::nb_in_pg');
+    if(inp){
+        inp.focus(); inp.value = '1';
+        var ev = new Event('keydown', {bubbles:true, cancelable:true});
+        ev.keyCode = 13; ev.key = 'Enter';
+        inp.dispatchEvent(ev);
+        return JSON.stringify({ok:true, method:'inp'});
     }
     return JSON.stringify({error:'first page control not found'});
 })()"""
@@ -337,6 +342,18 @@ if not info.get("rows"):
 total = info["total"]; pages = info["pages"]
 log(f"بيانات: {total} سجل، {pages} صفحة ({info['perPage']} لكل صفحة)")
 
+# عدد الصفحات الحقيقي من شريط الترقيم (قد يختلف عن محسوب perPage)
+try:
+    cnt_txt = js(send, "(function(){var c=document.getElementById('pt1:cBodFDC:r1:0:masteraTable:t1::nb_cnt'); return c ? c.innerText : '';})()") or ""
+    m = re.search(r'من\s+([0-9][0-9,]*)\b', cnt_txt.replace('\t', ' '))
+    if m:
+        pages_real = int(m.group(1).replace(',', ''))
+        if pages_real != pages:
+            log(f"تصحيح: عدد الصفحات الحقيقي {pages_real} بدلاً من {pages}")
+            pages = pages_real
+except Exception as e:
+    log(f"تعذر قراءة عدد الصفحات الحقيقي: {e}")
+
 # حارس: إذا فشل فلتر التواريخ وعادت كل الفترة (أكثر من المتوقع بكثير) نلغي التشغيل لإعادة المحاولة
 if total > 20000:
     log(f"WARN: إجمالي {total} أكبر من المتوقع (~12000) — فلتر التواريخ لم يُطبق على الأرجح")
@@ -360,22 +377,58 @@ last_start = info.get("start", 0)
 streak = 0
 log(f"جمع: صفحة {page_num}/{pages} ({len(all_rows)} صف)")
 
+if os.environ.get("BLS_DIAG"):
+    d = js(send, """(function(){
+        var t = document.querySelector('table.af_table_data-table');
+        var rng = document.getElementById('pt1:cBodFDC:r1:0:masteraTable:t1::nb_rng');
+        var cnt = document.getElementById('pt1:cBodFDC:r1:0:masteraTable:t1::nb_cnt');
+        var cols = (t && t.tHead && t.tHead.rows && t.tHead.rows[0]) ? t.tHead.rows[0].cells.length : -1;
+        var body = (t && t.tBodies && t.tBodies[0]) ? t.tBodies[0].rows.length : -1;
+        var out = {bodyRows: body, cols: cols,
+                   rng: rng ? rng.innerText : '', cnt: cnt ? cnt.innerText : ''};
+        var ls = [], pvv = [];
+        document.querySelectorAll('*').forEach(function(e){
+            if(e.id && e.id.indexOf('nb_ls')>=0) ls.push(e.id);
+            if(e.id && e.id.indexOf('nb_pv')>=0) pvv.push(e.id);
+        });
+        out.lsIds = ls; out.pvIds = pvv;
+        return JSON.stringify(out);
+    })()""")
+    log("DIAG: " + (d or "")[:1600])
+    ws.close(); sys.exit(0)
+
 while page_num < pages:
     next_page = page_num + 1
     r = json.loads(js(send, next_page_js(next_page)))
     if "error" in r:
         streak += 1
-        if streak > 5: log(f"توقف: 5 أخطاء تنقل متتالية"); break
+        if streak > 5: log(f"توقف: 5 أخطاء تنقل متتالية عند صفحة {next_page}"); break
+        _curr = json.loads(js(send, READ_DATA_JS)).get("page", 0)
+        if _curr > page_num:
+            page_num = _curr - 1
+            streak = 0
         time.sleep(3); continue
-    time.sleep(0.5)
+    # انتظار صبور لانتقال الجدول إلى الصفحة التالية (بدون إعادة النقر أثناء الانتقال)
+    slow = 0
+    time.sleep(0.6)
     info = json.loads(js(send, READ_DATA_JS))
     nxt_start = info.get("start", 0)
+    while nxt_start <= last_start and slow < 8:
+        time.sleep(1)
+        info = json.loads(js(send, READ_DATA_JS))
+        nxt_start = info.get("start", 0)
+        slow += 1
     if nxt_start <= last_start:
         streak += 1
         if streak > 5:
             log(f"توقف: التقدم توقف عند صفحة {next_page} (بداية {nxt_start})")
             break
-        time.sleep(2); continue
+        _curr = json.loads(js(send, READ_DATA_JS)).get("page", 0)
+        if _curr > page_num:
+            page_num = _curr - 1
+            streak = 0
+        time.sleep(1)
+        continue
     last_start = nxt_start
     rows = info.get("rows",[])
     if not rows:
