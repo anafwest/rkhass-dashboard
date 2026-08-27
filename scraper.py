@@ -161,6 +161,18 @@ EXPORT_JS = """(function(){
     return JSON.stringify({ok:true});
 })()"""
 
+FIRST_PAGE_JS = """(function(){
+    var b = document.getElementById('pt1:cBodFDC:r1:0:masteraTable:t1::nb_fs');
+    if(b){ b.click(); return JSON.stringify({ok:true, method:'fs'}); }
+    var anchors = document.querySelectorAll('a');
+    for(var i=0; i<anchors.length; i++){
+        if(anchors[i].innerText.trim() === '1' && anchors[i].id && anchors[i].id.indexOf('nb_pg') >= 0){
+            anchors[i].click(); return JSON.stringify({ok:true, method:'anchor'});
+        }
+    }
+    return JSON.stringify({error:'first page control not found'});
+})()"""
+
 def set_date_field(send, fid, value):
     """ضبط حقل تاريخ مع التحقق من القيمة وإعادة المحاولة حتى 3 مرات."""
     for attempt in range(3):
@@ -329,6 +341,18 @@ log(f"بيانات: {total} سجل، {pages} صفحة ({info['perPage']} لكل 
 if total > 20000:
     log(f"WARN: إجمالي {total} أكبر من المتوقع (~12000) — فلتر التواريخ لم يُطبق على الأرجح")
     ws.close(); sys.exit(2)
+
+# التأكد من البدء من الصفحة الأولى (البحث قد يترك الجدول على آخر صفحة من جلسة سابقة)
+for attempt_fp in range(4):
+    r = json.loads(js(send, FIRST_PAGE_JS))
+    time.sleep(0.8)
+    chk = json.loads(js(send, READ_DATA_JS))
+    if chk.get("page", 0) == 1:
+        info = chk
+        break
+    log(f"  محاولة الوصول لصفحة 1 ({attempt_fp+1}): الصفحة الحالية {chk.get('page')}")
+if info.get("page", 0) != 1:
+    log("ERROR: تعذر الوصول للصفحة الأولى"); ws.close(); sys.exit(3)
 
 all_rows = list(info["rows"])
 page_num = info["page"]
