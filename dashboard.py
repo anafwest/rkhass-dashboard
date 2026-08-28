@@ -92,6 +92,8 @@ st.markdown("""
 # ======================== تهيئة الحالة =============================
 if "filter_stage" not in st.session_state:
     st.session_state.filter_stage = "الكل"
+if "ups_stage" not in st.session_state:
+    st.session_state.ups_stage = "الكل"
 if "show_filters" not in st.session_state:
     st.session_state.show_filters = False
 if "data_source" not in st.session_state:
@@ -99,25 +101,14 @@ if "data_source" not in st.session_state:
 if "page" not in st.session_state:
     st.session_state.page = "main"
 
-# ======================== شريط التنقل بين الصفحات ==================
-st.markdown('<div class="section-title">🌐 دوائر النظامين — يُفتحان في تبويب جديد</div>', unsafe_allow_html=True)
-ext_c1, ext_c2, ext_c3, ext_c4 = st.columns(4)
-with ext_c1:
-    st.markdown('<a class="ext-link" href="https://app.alriyadh.gov.sa/BLS/faces/home" target="_blank">🏗️ نظام BLS الرسمي</a>', unsafe_allow_html=True)
-with ext_c2:
-    st.markdown('<a class="ext-link" href="https://ups-backoffice.alriyadh.gov.sa/ar/building-license-department?activeTab=requests" target="_blank">📦 نظام UPS الرسمي</a>', unsafe_allow_html=True)
-with ext_c3:
-    st.markdown('<a class="ext-link" href="https://github.com/anafwest/rkhass-dashboard" target="_blank">📚 مستودع المشروع</a>', unsafe_allow_html=True)
-with ext_c4:
-    st.markdown('<a class="ext-link" href="https://rkhass-dashboard-kp2hp3jyvabdf5baj6rey2.streamlit.app" target="_blank">🚀 الداشبورد المنشور</a>', unsafe_allow_html=True)
-
+# ======================== التنقل بين الصفحات ==================
 st.markdown('<div class="section-title">📊 لوحات التحليل الداخلية</div>', unsafe_allow_html=True)
 nav_pages = {"main": "🏗️ لوحة BLS", "ups": "📦 لوحة UPS"}
 nav_cols = st.columns(2)
 for i, (key, label) in enumerate(nav_pages.items()):
     with nav_cols[i]:
         is_active = st.session_state.page == key
-        if st.button(label, key=f"nav_{key}", use_container_width=True, type="primary" if is_active else "secondary"):
+        if st.button(label, key=f"nav_{key}", width="stretch", type="primary" if is_active else "secondary"):
             st.session_state.page = key
             st.rerun()
 
@@ -186,6 +177,38 @@ if st.session_state.page == "ups":
         <div class="kpi k-stop"><div class="kpi-val" style="color:#64748b">{cancel_ups:,}</div><div class="kpi-lbl">⛔ ملغي</div><div class="kpi-sub">{round(cancel_ups/total_ups*100,1) if total_ups else 0}%</div><div class="kpi-bar" style="background:#94a3b8"></div></div>
     </div>""", unsafe_allow_html=True)
 
+    # صف مؤشرات ملخص (بمثابة صفحة BLS)
+    def _pct(n):
+        return round(n / total_ups * 100, 1) if total_ups else 0
+
+    st.markdown(f"""<div class="metric-row">
+        <div class="metric-card"><div class="metric-val">{_pct(done_ups)}%</div><div class="metric-lbl">📈 نسبة الإنجاز</div></div>
+        <div class="metric-card"><div class="metric-val">{_pct(inprog_ups)}%</div><div class="metric-lbl">⚙️ نسبة قيد العمل</div></div>
+        <div class="metric-card"><div class="metric-val">{_pct(amend_ups)}%</div><div class="metric-lbl">🔄 نسبة استكمال التعديلات</div></div>
+        <div class="metric-card"><div class="metric-val">{_pct(rej_ups)}%</div><div class="metric-lbl">❌ نسبة المرفوض</div></div>
+    </div>""", unsafe_allow_html=True)
+
+    # أزرار تصفية سريعة حسب الحالة (بمثابة صفحة BLS)
+    ups_stage_labels = {
+        "الكل": "📋 الكل", "مكتمل": "✅ مكتمل", "قيد العمل": "⚙️ قيد العمل",
+        "استكمال التعديلات": "🔄 استكمال التعديلات", "مرفوض": "❌ مرفوض",
+        "بانتظار السداد": "💳 بانتظار السداد", "ملغي": "⛔ ملغي",
+    }
+    ups_stage_counts = {
+        "الكل": total_ups, "مكتمل": done_ups, "قيد العمل": inprog_ups,
+        "استكمال التعديلات": amend_ups, "مرفوض": rej_ups,
+        "بانتظار السداد": pending_ups, "ملغي": cancel_ups,
+    }
+    ups_stages = list(ups_stage_labels.keys())
+    ups_btn_cols = st.columns(len(ups_stages))
+    for i, s in enumerate(ups_stages):
+        with ups_btn_cols[i]:
+            lbl = f"{ups_stage_labels[s]} ({ups_stage_counts[s]:,})"
+            is_active = st.session_state.ups_stage == s
+            if st.button(lbl, key=f"ups_btn_{s}", width="stretch", type="primary" if is_active else "secondary"):
+                st.session_state.ups_stage = s
+                st.rerun()
+
     st.markdown('<div class="section-title">🔍 تصفية الطلبات</div>', unsafe_allow_html=True)
     fc1, fc2, fc3, fc4 = st.columns(4)
     with fc1:
@@ -199,6 +222,11 @@ if st.session_state.page == "ups":
     search_term = st.text_input("🔎 بحث برقم الطلب أو رقم الرخصة أو اسم المستفيد", placeholder="مثال: BLS-LR268184")
 
     ups_filtered = ups_df.copy()
+    if st.session_state.ups_stage != "الكل":
+        if st.session_state.ups_stage == "قيد العمل":
+            ups_filtered = ups_filtered[ups_filtered["حالة الطلب"].str.contains("قيد العمل", na=False)]
+        else:
+            ups_filtered = ups_filtered[ups_filtered["حالة الطلب"] == st.session_state.ups_stage]
     if flt_status: ups_filtered = ups_filtered[ups_filtered["حالة الطلب"].isin(flt_status)]
     if flt_service: ups_filtered = ups_filtered[ups_filtered["نوع الخدمة"].isin(flt_service)]
     if flt_area: ups_filtered = ups_filtered[ups_filtered["الحي"].isin(flt_area)]
@@ -210,7 +238,7 @@ if st.session_state.page == "ups":
                 | ups_filtered["اسم المستفيد"].str.contains(term, case=False, na=False))
         ups_filtered = ups_filtered[mask]
 
-    st.markdown(f'<div class="section-title">📊 التوزيعات</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">📈 التوزيعات والاتجاهات</div>', unsafe_allow_html=True)
     ur1, ur2, ur3 = st.columns(3)
     with ur1:
         st.markdown('<div class="box"><div class="box-title">🍩 توزيع الطلبات حسب الحالة</div>', unsafe_allow_html=True)
@@ -222,7 +250,7 @@ if st.session_state.page == "ups":
         fig = px.pie(st_pie, names="الحالة", values="العدد", hole=0.55, color="الحالة", color_discrete_map=cmap)
         fig.update_layout(height=220, margin=dict(l=5, r=5, t=10, b=5), legend=dict(font=dict(size=9), orientation="h", y=-0.1))
         fig.update_traces(textposition='inside', textinfo='percent', textfont_size=10, marker=dict(line=dict(color='white', width=2)))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
         st.markdown('</div>', unsafe_allow_html=True)
     with ur2:
         st.markdown('<div class="box"><div class="box-title">📊 توزيع الطلبات حسب نوع الخدمة</div>', unsafe_allow_html=True)
@@ -230,7 +258,7 @@ if st.session_state.page == "ups":
         svc_ups.columns = ["الخدمة", "العدد"]
         fig = px.bar(svc_ups, x="الخدمة", y="العدد", color="العدد", color_continuous_scale=["#bbf7d0", "#15803d"])
         fig.update_layout(height=220, margin=dict(l=5, r=5, t=10, b=40), showlegend=False, xaxis=dict(tickfont=dict(size=9), tickangle=-30), yaxis=dict(tickfont=dict(size=9)))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
         st.markdown('</div>', unsafe_allow_html=True)
     with ur3:
         st.markdown('<div class="box"><div class="box-title">📈 توزيع الطلبات حسب الحالات الرئيسية والسنة</div>', unsafe_allow_html=True)
@@ -239,15 +267,15 @@ if st.session_state.page == "ups":
             fig = px.bar(status_year, x="السنة الهجرية", y="العدد", color="حالة الطلب", barmode="stack",
                          color_discrete_map=cmap)
             fig.update_layout(height=220, margin=dict(l=5, r=5, t=10, b=5), legend=dict(font=dict(size=8), orientation="h", y=-0.15), xaxis=dict(tickfont=dict(size=9)), yaxis=dict(tickfont=dict(size=9)))
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         else:
             st.info("لا توجد بيانات سنة")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown(f'<div class="section-title">📋 جدول الطلبات — {len(ups_filtered):,} سجل</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="section-title">📋 الجدول التفصيلي — {len(ups_filtered):,} سجل</div>', unsafe_allow_html=True)
     st.markdown('<div class="box">', unsafe_allow_html=True)
     ups_show = ups_filtered[["رقم الطلب", "رقم الرخصة", "تاريخ الطلب", "اسم المستفيد", "الحي", "نوع الخدمة", "حالة الطلب"]]
-    st.dataframe(ups_show, use_container_width=True, height=400)
+    st.dataframe(ups_show, width="stretch", height=400)
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown(f'<div class="footer">نظام التصاريح الموحد — قسم رخص البناء © {datetime.now().year} | آخر سحب عبر ups_scraper.py</div>', unsafe_allow_html=True)
@@ -323,7 +351,7 @@ if "df" not in st.session_state:
     with col1:
         st.markdown("### 1. سحب من البوابة")
         st.write("ضع ملف data.xlsx أو data.xls في مجلد المشروع ثم:")
-        if st.button("🔄 إعادة تحميل الملف الافتراضي", use_container_width=True):
+        if st.button("🔄 إعادة تحميل الملف الافتراضي", width="stretch"):
             if os.path.exists("data.xlsx"):
                 tmp = process_data(pd.read_excel("data.xlsx"))
                 if tmp is not None:
@@ -422,60 +450,24 @@ else:
 
 arrow_label = "◀" if st.session_state.show_filters else "▶"
 toggle_label = f"{arrow_label} {('إخفاء' if st.session_state.show_filters else 'إظهار')} الفلتر"
-r1, r2, r3 = st.columns([1, 1, 10])
-with r1:
-    if st.button(toggle_label, key="filter-btn", type="primary"):
-        st.session_state.show_filters = not st.session_state.show_filters
-        st.rerun()
-with r2:
-    if st.button("🔄 تحديث", type="secondary"):
-        if os.path.exists("data.xlsx"):
-            tmp = process_data(pd.read_excel("data.xlsx"))
-            if tmp is not None:
-                st.session_state["df"] = tmp
-                st.session_state.data_source = "default"
-                st.success("✅ تم تحديث البيانات")
-                st.rerun()
-        elif os.path.exists("data.xls"):
-            try:
-                tmp = process_data(read_html_file("data.xls"))
-                if tmp is not None:
-                    st.session_state["df"] = tmp
-                    st.session_state.data_source = "default"
-                    st.success("✅ تم تحديث البيانات")
-                    st.rerun()
-            except Exception:
-                pass
-        st.error("⚠️ لا يوجد ملف بيانات في المجلد")
+if st.button(toggle_label, key="filter-btn", type="primary"):
+    st.session_state.show_filters = not st.session_state.show_filters
+    st.rerun()
 
 if st.session_state.show_filters:
     st.markdown("<div style='background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px;margin-bottom:8px;'>", unsafe_allow_html=True)
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.markdown("##### 📅 الفترة الزمنية")
-        filter_mode = st.radio("الفترة", ["خلال اليوم", "خلال الأسبوع", "خلال الشهر", "خلال الربع", "خلال السنة", "تاريخ مخصص"], index=3, label_visibility="collapsed")
-
-        if filter_mode == "تاريخ مخصص":
-            dr = st.date_input("اختر الفترة", [min_date.date(), max_date.date()], min_value=min_date.date(), max_value=max_date.date(), label_visibility="collapsed")
-            sf = datetime.combine(dr[0], datetime.min.time()) if len(dr) >= 1 else min_date
-            ef = datetime.combine(dr[-1], datetime.max.time()) if len(dr) >= 2 else max_date
-        elif filter_mode == "خلال اليوم":
-            sf = today.replace(hour=0, minute=0, second=0, microsecond=0)
-            ef = today.replace(hour=23, minute=59, second=59)
-        elif filter_mode == "خلال الأسبوع":
-            sf = (today - timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0)
-            ef = today.replace(hour=23, minute=59, second=59)
-        elif filter_mode == "خلال الشهر":
-            sf = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            ef = today.replace(hour=23, minute=59, second=59)
-        elif filter_mode == "خلال الربع":
-            q = (today.month - 1) // 3
-            sf = datetime(today.year, q * 3 + 1, 1)
-            ef = today.replace(hour=23, minute=59, second=59)
-        elif filter_mode == "خلال السنة":
-            sf = today.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
-            ef = today.replace(hour=23, minute=59, second=59)
-
+        st.markdown("##### 📅 الفترة الزمنية (ميلادي)")
+        dr = st.date_input("الفترة من وإلى", [min_date.date(), max_date.date()], min_value=min_date.date(), max_value=max_date.date(), label_visibility="collapsed")
+        if len(dr) == 2:
+            sf = datetime.combine(dr[0], datetime.min.time())
+            ef = datetime.combine(dr[1], datetime.max.time())
+        elif len(dr) == 1:
+            sf = datetime.combine(dr[0], datetime.min.time())
+            ef = datetime.combine(dr[0], datetime.max.time())
+        else:
+            sf, ef = min_date, max_date
         st.markdown(f"<div style='background:#f0f4f8;padding:4px 8px;border-radius:6px;font-size:11px;text-align:center;'>{sf.date()} ← {ef.date()}</div>", unsafe_allow_html=True)
 
     with c2:
@@ -535,17 +527,19 @@ if "مدة الإنجاز (أيام)" in df_f.columns:
     total_duration = df_f["مدة الإنجاز (أيام)"].dropna().sum()
     avg_duration = int(total_duration / total) if total > 0 else 0
 
-data_file = "data.xlsx" if os.path.exists("data.xlsx") else "data.xls"
-data_mtime = datetime.fromtimestamp(os.path.getmtime(data_file)).strftime('%Y-%m-%d %H:%M') if os.path.exists(data_file) else "غير معروف"
+if "تاريخ الطلب ميلادي" in df.columns and not df["تاريخ الطلب ميلادي"].isna().all():
+    last_req = df["تاريخ الطلب ميلادي"].max().strftime("%Y-%m-%d")
+else:
+    last_req = "غير معروف"
 
 st.markdown(f"""
 <div class="header-bar">
     <div>
         <h1>🏗️ مؤشر أداء رخص البناء</h1>
-        <p class="sub">أمانة منطقة الرياض — قطاع الغرب | آخر تحديث للبيانات: {data_mtime} | إجمالي البيانات: {len(df):,} سجل</p>
+        <p class="sub">أمانة منطقة الرياض — قطاع الغرب | آخر تاريخ طلب في البيانات: {last_req} | إجمالي البيانات: {len(df):,} سجل</p>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
-        <span class="badge" style="background:rgba(34,197,94,0.2);color:#22c55e;border:1px solid rgba(34,197,94,0.3)">✅ محدث — {data_mtime}</span>
+        <span class="badge" style="background:rgba(34,197,94,0.2);color:#22c55e;border:1px solid rgba(34,197,94,0.3)">✅ محدث — حتى {last_req}</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -576,7 +570,7 @@ for i, (opt, cnt) in enumerate(zip(filter_options, filter_counts)):
     with filter_cols[i]:
         label = f"{filter_labels[opt]} ({cnt:,})"
         is_active = st.session_state.filter_stage == opt
-        if st.button(label, key=f"btn_{opt}", use_container_width=True, type="primary" if is_active else "secondary"):
+        if st.button(label, key=f"btn_{opt}", width="stretch", type="primary" if is_active else "secondary"):
             st.session_state.filter_stage = opt
             st.rerun()
 
@@ -595,7 +589,7 @@ with r1:
     fig = px.pie(pie_data, names="الحالة", values="العدد", hole=0.55, color="الحالة", color_discrete_map=color_map_pie)
     fig.update_layout(height=220, margin=dict(l=5, r=5, t=10, b=5), showlegend=True, legend=dict(font=dict(size=9), orientation="h", y=-0.1))
     fig.update_traces(textposition='inside', textinfo='percent', textfont_size=10, marker=dict(line=dict(color='white', width=2)))
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     st.markdown('</div>', unsafe_allow_html=True)
 
 with r2:
@@ -605,7 +599,7 @@ with r2:
         svc.columns = ["الخدمة", "العدد"]
         fig = px.bar(svc, x="الخدمة", y="العدد", color="العدد", color_continuous_scale=["#bbf7d0", "#15803d"])
         fig.update_layout(height=220, margin=dict(l=5, r=5, t=10, b=40), showlegend=False, xaxis=dict(tickfont=dict(size=9), tickangle=-30), yaxis=dict(tickfont=dict(size=9)))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     else:
         st.info("بيانات نوع الخدمة غير متوفرة")
     st.markdown('</div>', unsafe_allow_html=True)
@@ -617,7 +611,7 @@ with r3:
         ent.columns = ["الجهة", "العدد"]
         fig = px.bar(ent, x="العدد", y="الجهة", orientation="h", color="العدد", color_continuous_scale=["#bbf7d0", "#0d3320"])
         fig.update_layout(height=220, margin=dict(l=5, r=5, t=10, b=5), showlegend=False, yaxis=dict(tickfont=dict(size=9)), xaxis=dict(tickfont=dict(size=9)))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     else:
         st.info("بيانات الجهة غير متوفرة")
     st.markdown('</div>', unsafe_allow_html=True)
@@ -635,7 +629,7 @@ with r4:
         fig.add_trace(go.Bar(x=monthly["الشهر"], y=monthly["العدد"], name="عدد الطلبات", marker_color="#86efac", opacity=0.7), secondary_y=False)
         fig.add_trace(go.Scatter(x=monthly["الشهر"], y=monthly["المتوسط"], name="المتوسط المتحرك", line=dict(color="#15803d", width=2, dash="dot"), mode="lines"), secondary_y=True)
         fig.update_layout(height=210, margin=dict(l=5, r=5, t=10, b=5), showlegend=True, legend=dict(font=dict(size=8), orientation="h", y=-0.15), xaxis=dict(tickfont=dict(size=8)), yaxis=dict(tickfont=dict(size=8)), yaxis2=dict(tickfont=dict(size=8)))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     else:
         st.info("بيانات التاريخ غير متوفرة")
     st.markdown('</div>', unsafe_allow_html=True)
@@ -647,7 +641,7 @@ with r5:
         fig = px.bar(cat, x="السنة", y="العدد", color="تصنيف", barmode="stack",
                      color_discrete_map={"منجز": "#15803d", "معاد للمستفيد": "#2563eb", "مرفوض": "#dc2626", "ايقاف": "#9333ea", "تحت الإجراء": "#d97706", "جديد": "#7c3aed", "غير محدد": "#94a3b8"})
         fig.update_layout(height=210, margin=dict(l=5, r=5, t=10, b=5), legend=dict(font=dict(size=8), orientation="h", y=-0.15), xaxis=dict(tickfont=dict(size=9)), yaxis=dict(tickfont=dict(size=9)))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     else:
         st.info("بيانات السنة غير متوفرة")
     st.markdown('</div>', unsafe_allow_html=True)
@@ -660,7 +654,7 @@ with r6:
         dur_data = dur_data.sort_values("متوسط المدة", ascending=True)
         fig = px.bar(dur_data, x="متوسط المدة", y="نوع الخدمة", orientation="h", color="متوسط المدة", color_continuous_scale=["#fef3c7", "#d97706"])
         fig.update_layout(height=210, margin=dict(l=5, r=5, t=10, b=5), showlegend=False, yaxis=dict(tickfont=dict(size=9)), xaxis=dict(tickfont=dict(size=9), title="أيام"))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     else:
         st.info("بيانات المدة غير متوفرة")
     st.markdown('</div>', unsafe_allow_html=True)
@@ -676,7 +670,7 @@ with r7:
         day_counts["اليوم"] = day_counts["اليوم"].map(day_ar)
         fig = px.bar(day_counts, x="اليوم", y="العدد", color="العدد", color_continuous_scale=["#d1fae5", "#065f46"])
         fig.update_layout(height=200, margin=dict(l=5, r=5, t=10, b=5), showlegend=False, xaxis=dict(tickfont=dict(size=10)), yaxis=dict(tickfont=dict(size=9)))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     else:
         st.info("بيانات الأيام غير متوفرة")
     st.markdown('</div>', unsafe_allow_html=True)
@@ -687,7 +681,7 @@ with r8:
     stages.columns = ["المرحلة", "العدد"]
     fig = px.bar(stages, x="العدد", y="المرحلة", orientation="h", color="العدد", color_continuous_scale=["#e0f2fe", "#0369a1"])
     fig.update_layout(height=200, margin=dict(l=5, r=5, t=10, b=5), showlegend=False, yaxis=dict(tickfont=dict(size=8)), xaxis=dict(tickfont=dict(size=9)))
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     st.markdown('</div>', unsafe_allow_html=True)
 
 if "مدة الإنجاز (أيام)" in df_f.columns:
@@ -700,7 +694,7 @@ if "مدة الإنجاز (أيام)" in df_f.columns:
         if len(dur_valid) > 0:
             fig = px.histogram(dur_valid, nbins=25, color_discrete_sequence=["#15803d"])
             fig.update_layout(height=200, margin=dict(l=5, r=5, t=10, b=5), xaxis=dict(title="أيام", tickfont=dict(size=9)), yaxis=dict(tickfont=dict(size=9)))
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         else:
             st.info("لا توجد بيانات مدة إنجاز كافية")
         st.markdown('</div>', unsafe_allow_html=True)
@@ -714,7 +708,7 @@ if "مدة الإنجاز (أيام)" in df_f.columns:
                 fig = px.bar(ent_dur, x="متوسط المدة", y="الجهة", orientation="h", color="متوسط المدة", color_continuous_scale=["#dcfce7", "#15803d"], text="متوسط المدة")
                 fig.update_traces(texttemplate='%{x:.0f} يوم', textposition='outside', textfont=dict(size=9))
                 fig.update_layout(height=200, margin=dict(l=5, r=40, t=10, b=5), showlegend=False, yaxis=dict(tickfont=dict(size=9)), xaxis=dict(tickfont=dict(size=9)))
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
             else:
                 st.info("لا توجد بيانات كافية")
         else:
@@ -729,7 +723,7 @@ if cols_show:
     for dcol in ["تاريخ الطلب ميلادي", "تاريخ المراجعة ميلادي"]:
         if dcol in display_df.columns:
             display_df[dcol] = display_df[dcol].dt.strftime("%Y-%m-%d")
-    st.dataframe(display_df, use_container_width=True, height=250)
+    st.dataframe(display_df, width="stretch", height=250)
 st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown(f'<div class="footer">أمانة منطقة الرياض — قطاع الغرب © {datetime.now().year} | جميع الحقوق محفوظة</div>', unsafe_allow_html=True)
