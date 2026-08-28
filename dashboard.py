@@ -96,6 +96,8 @@ if "ups_stage" not in st.session_state:
     st.session_state.ups_stage = "الكل"
 if "show_filters" not in st.session_state:
     st.session_state.show_filters = False
+if "ups_show_filters" not in st.session_state:
+    st.session_state.ups_show_filters = False
 if "data_source" not in st.session_state:
     st.session_state.data_source = "none"
 if "page" not in st.session_state:
@@ -120,8 +122,8 @@ if st.session_state.page == "ups":
     st.markdown("""
 <div class="header-bar">
     <div>
-        <h1>📦 متابعة طلبات قسم رخص البناء — نظام التصاريح الموحد</h1>
-        <p class="sub">الطلبات القائمة حالياً في نظام UPS | البيانات: ups_requests.xlsx</p>
+        <h1>📦 مؤشر أداء رخص البناء</h1>
+        <p class="sub">الطلبات القائمة حالياً في نظام التصاريح الموحد (UPS) | البيانات: ups_requests.xlsx</p>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -188,6 +190,40 @@ if st.session_state.page == "ups":
         <div class="metric-card"><div class="metric-val">{_pct(rej_ups)}%</div><div class="metric-lbl">❌ نسبة المرفوض</div></div>
     </div>""", unsafe_allow_html=True)
 
+    # زر إظهار/إخفاء الفلتر (نفس زر صفحة BLS)
+    ups_arrow = "◀" if st.session_state.ups_show_filters else "▶"
+    ups_toggle_label = f"{ups_arrow} {('إخفاء' if st.session_state.ups_show_filters else 'إظهار')} الفلتر"
+    if st.button(ups_toggle_label, key="ups-filter-btn", type="primary"):
+        st.session_state.ups_show_filters = not st.session_state.ups_show_filters
+        st.rerun()
+
+    if st.session_state.ups_show_filters:
+        st.markdown('<div class="section-title">🔍 تصفية الطلبات</div>', unsafe_allow_html=True)
+        fc1, fc2, fc3, fc4 = st.columns(4)
+        with fc1:
+            flt_status = st.multiselect("حالة الطلب", sorted(ups_df["حالة الطلب"].unique()), default=None, placeholder="الكل")
+        with fc2:
+            flt_service = st.multiselect("نوع الخدمة", sorted(ups_df["نوع الخدمة"].unique()), default=None, placeholder="الكل")
+        with fc3:
+            flt_area = st.multiselect("الحي", sorted(ups_df["الحي"].unique()), default=None, placeholder="الكل")
+        with fc4:
+            flt_year = st.multiselect("السنة الهجرية", sorted(ups_df["السنة الهجرية"].unique()), default=None, placeholder="الكل")
+        search_term = st.text_input("🔎 بحث برقم الطلب أو رقم الرخصة أو اسم المستفيد", placeholder="مثال: BLS-LR268184")
+    else:
+        flt_status, flt_service, flt_area, flt_year, search_term = [], [], [], [], ""
+
+    ups_filtered = ups_df.copy()
+    if flt_status: ups_filtered = ups_filtered[ups_filtered["حالة الطلب"].isin(flt_status)]
+    if flt_service: ups_filtered = ups_filtered[ups_filtered["نوع الخدمة"].isin(flt_service)]
+    if flt_area: ups_filtered = ups_filtered[ups_filtered["الحي"].isin(flt_area)]
+    if flt_year: ups_filtered = ups_filtered[ups_filtered["السنة الهجرية"].isin(flt_year)]
+    if search_term:
+        term = search_term.strip()
+        mask = (ups_filtered["رقم الطلب"].str.contains(term, case=False, na=False)
+                | ups_filtered["رقم الرخصة"].str.contains(term, case=False, na=False)
+                | ups_filtered["اسم المستفيد"].str.contains(term, case=False, na=False))
+        ups_filtered = ups_filtered[mask]
+
     # أزرار تصفية سريعة حسب الحالة (بمثابة صفحة BLS)
     ups_stage_labels = {
         "الكل": "📋 الكل", "مكتمل": "✅ مكتمل", "قيد العمل": "⚙️ قيد العمل",
@@ -209,34 +245,13 @@ if st.session_state.page == "ups":
                 st.session_state.ups_stage = s
                 st.rerun()
 
-    st.markdown('<div class="section-title">🔍 تصفية الطلبات</div>', unsafe_allow_html=True)
-    fc1, fc2, fc3, fc4 = st.columns(4)
-    with fc1:
-        flt_status = st.multiselect("حالة الطلب", sorted(ups_df["حالة الطلب"].unique()), default=None, placeholder="الكل")
-    with fc2:
-        flt_service = st.multiselect("نوع الخدمة", sorted(ups_df["نوع الخدمة"].unique()), default=None, placeholder="الكل")
-    with fc3:
-        flt_area = st.multiselect("الحي", sorted(ups_df["الحي"].unique()), default=None, placeholder="الكل")
-    with fc4:
-        flt_year = st.multiselect("السنة الهجرية", sorted(ups_df["السنة الهجرية"].unique()), default=None, placeholder="الكل")
-    search_term = st.text_input("🔎 بحث برقم الطلب أو رقم الرخصة أو اسم المستفيد", placeholder="مثال: BLS-LR268184")
-
-    ups_filtered = ups_df.copy()
     if st.session_state.ups_stage != "الكل":
         if st.session_state.ups_stage == "قيد العمل":
             ups_filtered = ups_filtered[ups_filtered["حالة الطلب"].str.contains("قيد العمل", na=False)]
         else:
             ups_filtered = ups_filtered[ups_filtered["حالة الطلب"] == st.session_state.ups_stage]
-    if flt_status: ups_filtered = ups_filtered[ups_filtered["حالة الطلب"].isin(flt_status)]
-    if flt_service: ups_filtered = ups_filtered[ups_filtered["نوع الخدمة"].isin(flt_service)]
-    if flt_area: ups_filtered = ups_filtered[ups_filtered["الحي"].isin(flt_area)]
-    if flt_year: ups_filtered = ups_filtered[ups_filtered["السنة الهجرية"].isin(flt_year)]
-    if search_term:
-        term = search_term.strip()
-        mask = (ups_filtered["رقم الطلب"].str.contains(term, case=False, na=False)
-                | ups_filtered["رقم الرخصة"].str.contains(term, case=False, na=False)
-                | ups_filtered["اسم المستفيد"].str.contains(term, case=False, na=False))
-        ups_filtered = ups_filtered[mask]
+
+    st.markdown(f'<div class="section-title">📊 عرض: {ups_stage_labels[st.session_state.ups_stage]} — {len(ups_filtered):,} سجل</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="section-title">📈 التوزيعات والاتجاهات</div>', unsafe_allow_html=True)
     ur1, ur2, ur3 = st.columns(3)
@@ -456,6 +471,7 @@ if st.button(toggle_label, key="filter-btn", type="primary"):
 
 if st.session_state.show_filters:
     st.markdown("<div style='background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px;margin-bottom:8px;'>", unsafe_allow_html=True)
+    st.markdown('<div class="section-title" style="margin:0 0 8px 0;">🔍 تصفية الطلبات</div>', unsafe_allow_html=True)
     c1, c2, c3 = st.columns(3)
     with c1:
         st.markdown("##### 📅 الفترة الزمنية (ميلادي)")
