@@ -241,6 +241,19 @@ if not ws_url:
 
 ws, send = connect_ws(ws_url)
 url = js(send, "document.location.href")
+
+# التاريخ الهجري اليوم (تقويم أم القرى الرسمي) — نهاية الدورة تلقائية ومستمرة
+try:
+    hjs = ("(function(){var f=new Intl.DateTimeFormat('en-u-ca-islamic-umalqura',"
+           "{year:'numeric',month:'2-digit',day:'2-digit',timeZone:'Asia/Riyadh'});"
+           "var p={};f.formatToParts(new Date()).forEach(function(x){p[x.type]=x.value;});"
+           "return p.year+'/'+p.month+'/'+p.day;})()")
+    hijri_today = js(send, hjs)
+    if hijri_today and re.match(r'^\d{4}/\d{2}/\d{2}$', str(hijri_today)):
+        TO_DATE = str(hijri_today)
+        log(f"نهاية الفترة = اليوم الواقعي: {TO_DATE}")
+except Exception as e:
+    log(f"تعذر حساب التاريخ الهجري اليوم ({e}) — سيبقى الثابت {TO_DATE}")
 log(f"متصل: {url[:100]}")
 
 for i in range(10):
