@@ -119,11 +119,18 @@ st.markdown(f'<div class="footer" style="margin-top:0;padding:4px 0;">الصفح
 
 # ======================== صفحة طلبات النظام (UPS) ===================
 if st.session_state.page == "ups":
-    st.markdown("""
+    try:
+        ups_pull_ts = datetime.fromtimestamp(os.path.getmtime("ups_requests.xlsx")).strftime("%d-%m-%Y %H:%M")
+    except Exception:
+        ups_pull_ts = "غير معروف"
+    st.markdown(f"""
 <div class="header-bar">
     <div>
         <h1>📦 مؤشر أداء رخص البناء</h1>
-        <p class="sub">الطلبات القائمة حالياً في نظام التصاريح الموحد (UPS) | البيانات: ups_requests.xlsx</p>
+        <p class="sub">الطلبات القائمة حالياً في نظام التصاريح الموحد (UPS) | آخر سحب للبيانات: {ups_pull_ts}</p>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+        <span class="badge" style="background:rgba(34,197,94,0.2);color:#22c55e;border:1px solid rgba(34,197,94,0.3)">✅ محدث — آخر سحب للبيانات: {ups_pull_ts}</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -548,14 +555,19 @@ if "تاريخ الطلب ميلادي" in df.columns and not df["تاريخ ا�
 else:
     last_req = "غير معروف"
 
+try:
+    data_pull_ts = datetime.fromtimestamp(os.path.getmtime("data.xlsx")).strftime("%d-%m-%Y %H:%M")
+except Exception:
+    data_pull_ts = "غير معروف"
+
 st.markdown(f"""
 <div class="header-bar">
     <div>
         <h1>🏗️ مؤشر أداء رخص البناء</h1>
-        <p class="sub">أمانة منطقة الرياض — قطاع الغرب | آخر تاريخ طلب في البيانات: {last_req} | إجمالي البيانات: {len(df):,} سجل</p>
+        <p class="sub">أمانة منطقة الرياض — قطاع الغرب | آخر تاريخ طلب: {last_req} | إجمالي البيانات: {len(df):,} سجل</p>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
-        <span class="badge" style="background:rgba(34,197,94,0.2);color:#22c55e;border:1px solid rgba(34,197,94,0.3)">✅ محدث — حتى {last_req}</span>
+        <span class="badge" style="background:rgba(34,197,94,0.2);color:#22c55e;border:1px solid rgba(34,197,94,0.3)">✅ محدث — آخر سحب للبيانات: {data_pull_ts}</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
