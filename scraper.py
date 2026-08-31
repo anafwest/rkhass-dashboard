@@ -222,19 +222,36 @@ has_bls = any("BLS" in t.get("url","") and "login" not in t.get("url","").lower(
               for t in tabs if t.get("type")=="page")
 
 if not has_bls:
-    if not start_chrome():
-        log("FATAL: Chrome didnt start"); sys.exit(1)
-    log("انتظار Chrome+SSO..."); time.sleep(20)
+    # لا نقتل Chrome حتى نُبقي جلسات التبويبات الأخرى (مثل UPS) حيّة —
+    # نفتح تبويب BLS جديداً في نفس المتصفح بدلاً من ذلك.
+    try:
+        import urllib.parse as _up
+        _nb = json.loads(urllib.request.urlopen(
+            f"http://127.0.0.1:{PORT}/json/new?{_up.quote('about:blank', safe='')}",
+            method="PUT", timeout=8).read())
+        log("فتح تبويب BLS جديد في نفس المتصفح")
+    except Exception as e:
+        log(f"تعذر فتح تبويب جديد، تشغيل Chrome: {e}")
+        if not start_chrome():
+            log("FATAL: Chrome didnt start"); sys.exit(1)
+        log("انتظار Chrome+SSO..."); time.sleep(20)
 
 for attempt in range(5):
     tabs = get_tabs()
     ws_url = None
+    # نفضّل تبويب BLS حصراً (المسار BLS/faces) حتى لا نلتقط تبويب UPS
     for t in tabs:
         u = t.get("url","")
-        if t.get("type")=="page" and "alriyadh" in u and u != "about:blank":
+        if t.get("type")=="page" and "BLS/faces" in u:
             ws_url = t.get("webSocketDebuggerUrl"); break
+    if not ws_url:
+        # fallback: تبويب about:blank أنشأناه للتو على BLS — أو أي تبويب BLS
+        for t in tabs:
+            u = t.get("url","")
+            if t.get("type")=="page" and "BLS" in u and u != "about:blank":
+                ws_url = t.get("webSocketDebuggerUrl"); break
     if ws_url: break
-    log(f"انتظار تبويب... ({attempt+1})"); time.sleep(5)
+    log(f"انتظار تبويب BLS... ({attempt+1})"); time.sleep(5)
 
 if not ws_url:
     log("FATAL: no tab"); sys.exit(1)
