@@ -179,19 +179,19 @@ FIRST_PAGE_JS = """(function(){
 })()"""
 
 def set_date_field(send, fid, value):
-    """ضبط حقل تاريخ مع التحقق من القيمة وإعادة المحاولة حتى 3 مرات."""
+    """ضبط حقل تاريخ مباشرة عبر تعيين قيمة العنصر DOM (لا يتراكم النص أبداً)."""
     for attempt in range(3):
         r = js(send, "(function(){var el=document.getElementById('" + fid + "');if(!el)return 'nf';"
-                     "el.focus();el.removeAttribute('readonly');var x=el.getBoundingClientRect();"
-                     "return JSON.stringify({x:x.x+x.width/2,y:x.y+x.height/2});})()")
+                     "el.focus();el.removeAttribute('readonly');"
+                     "var proto=Object.getPrototypeOf(el);"
+                     "var setter=Object.getOwnPropertyDescriptor(proto,'value');"
+                     "if(setter&&setter.set)setter.set.call(el,'" + value + "');else el.value='" + value + "';"
+                     "el.dispatchEvent(new Event('input',{bubbles:true}));"
+                     "el.dispatchEvent(new Event('change',{bubbles:true}));"
+                     "el.blur();"
+                     "return JSON.stringify({val:el.value});})()")
         if not r or r == 'nf':
             return False
-        pos = json.loads(r)
-        cdp_triple_click(send, pos["x"], pos["y"])
-        time.sleep(0.2)
-        send("Input.insertText", {"text": value})
-        time.sleep(0.5)
-        js(send, "document.body.click()")
         time.sleep(0.8)
         got = js(send, "var el=document.getElementById('" + fid + "'); el ? el.value : ''")
         if got == value:
@@ -299,11 +299,25 @@ if "login" in url.lower():
     log("ما نقدر نتجاوز صفحة الدخول"); ws.close(); sys.exit(1)
 
 def find_clickable(send, pattern):
-    JS = ("(function(){var best=null,bb=1e18;document.querySelectorAll('a,span,div,td,li,h4,h5,h6').forEach(function(e){"
-          "var t=(e.innerText||'').replace(/\\s+/g,' ').trim();"
-          "if(new RegExp('" + pattern + "').test(t)){var r=e.getBoundingClientRect();var area=r.width*r.height;"
-          "if(area>0&&area<90000&&area<bb&&t.length<120){bb=area;best={x:r.x+r.width/2,y:r.y+r.height/2,t:t.substring(0,60)};}}});"
-          "return best?JSON.stringify(best):'not found';})()")
+    # يرجع الإحداثيات (للسجل) وينقر العنصر مباشرة عبر element.click()
+    # عناصر قوائم ADF تستجيب للنقر البرمجي المباشر أكثر موثوقية من محاكاة الماوس.
+
+    # 1) نحاول النقر عبر .click() على عنصر مطابق قابل للرؤية
+    r = js(send, "(function(){var cands=[];"
+          "document.querySelectorAll('a,span,div,td,li,h4,h5').forEach(function(e){"
+          "var t=(e.innerText||'').replace(/\\s+/g,' ').trim();var g=e.getBoundingClientRect();"
+          "if(new RegExp('" + pattern + "','i').test(t)&&t.length<120&&g.width>0&&g.height>0&&g.x>=0&&g.y>=0){"
+          "cands.push({e:e,w:g.width,h:g.height,x:g.x+g.width/2,y:g.y+g.height/2,t:t.slice(0,60)});}});"
+          "if(!cands.length)return 'nf';"
+          "cands.sort(function(a,b){return (a.w*a.h)-(b.w*b.h);});"
+          "var pick=cands[0];"
+          "if(pick.e.click){pick.e.click();}return JSON.stringify({x:pick.x,y:pick.y,t:pick.t});})()")
+    if isinstance(r, str) and r == 'nf':
+        return None
+    try:
+        return json.loads(r)
+    except Exception:
+        return None
     r = js(send, JS)
     if isinstance(r, str) and r != 'not found':
         try: return json.loads(r)
@@ -322,7 +336,7 @@ def screen_is_8510(send):
 
 def ensure_8510(send):
     """الوصول لشاشة BLS8510 مع التحقق من هويتها، مع إعادة محاولة بعد العودة للرئيسية."""
-    for attempt in range(4):
+    for attempt in range(5):
         if screen_is_8510(send):
             log(f"شاشة BLS8510 مؤكدة (المحاولة {attempt+1})")
             return True
@@ -330,25 +344,27 @@ def ensure_8510(send):
             url = js(send, "document.location.href") or ""
             if "home" not in url:
                 js(send, f"window.location.href='{BLS_URL}'")
-                time.sleep(7)
+                time.sleep(8)
         steps = [
             ("BLS\\s*8000", "BLS8000"),
             ("BLS\\s*8500|الاستعلامات", "BLS8500"),
-            ("BLS\\s*8510|استعلام عن بيانات الطلبات", "BLS8510"),
+            ("BLS\\s*8510|استعلام عن بيانات الطلبات|استعلام", "BLS8510"),
         ]
+        # نضغط كل مستوى وننتظر أطول (ADF يحتاج وقتاً لتوسيع القوائم الفرعية)
         for pat, desc in steps:
+            if screen_is_8510(send):
+                log("شاشة BLS8510 تحققت خلال التنقل"); return True
             pos = find_clickable(send, pat)
             if pos:
-                cdp_click(send, pos["x"], pos["y"])
                 log(f"نقر: {desc} -> {pos['t'][:40]}")
-                time.sleep(3)
+                time.sleep(4)
             else:
                 log(f"عنصر غير موجود: {desc}")
         time.sleep(5)
         if screen_is_8510(send):
             log("شاشة BLS8510 مؤكدة بعد التنقل")
             return True
-    log(f"يكمن النص الحالي: {(js(send, SCREEN_TITLES_JS) or '')[:100]}")
+    log(f"النص الحالي: {(js(send, SCREEN_TITLES_JS) or '')[:100]}")
     return False
 
 if not ensure_8510(send):
@@ -361,13 +377,24 @@ if not ok_dates:
     time.sleep(3)
     ok_dates = set_date_and_search(send, FROM_DATE, TO_DATE)
 
-for i in range(6):
+for i in range(12):
     info = json.loads(js(send, READ_DATA_JS))
-    if info.get("rows"): break
-    log(f"انتظار بيانات بعد البحث... ({i+1})"); time.sleep(5)
+    if info.get("rows") and info.get("perPage", 0) >= 5:
+        break
+    log(f"انتظار اكتمال الجدول بعد البحث... ({i+1}, perPage={info.get('perPage')})"); time.sleep(5)
 
-if not info.get("rows"):
-    log("ERROR: لا توجد بيانات"); ws.close(); sys.exit(1)
+if not info.get("rows") or info.get("perPage", 0) < 5:
+    log("ERROR: الجدول لم يكتمل (perPage<5)")
+    # إعادة البحث لضمان قراءة سليمة
+    set_date_and_search(send, FROM_DATE, TO_DATE)
+    time.sleep(6)
+    for i in range(8):
+        info = json.loads(js(send, READ_DATA_JS))
+        if info.get("rows") and info.get("perPage", 0) >= 5:
+            break
+        time.sleep(4)
+    if not info.get("rows") or info.get("perPage", 0) < 5:
+        log("ERROR: لا توجد بيانات كاملة بعد إعادة البحث"); ws.close(); sys.exit(1)
 
 total = info["total"]; pages = info["pages"]
 log(f"بيانات: {total} سجل، {pages} صفحة ({info['perPage']} لكل صفحة)")
@@ -432,7 +459,7 @@ while page_num < pages:
     r = json.loads(js(send, next_page_js(next_page)))
     if "error" in r:
         streak += 1
-        if streak > 5: log(f"توقف: 5 أخطاء تنقل متتالية عند صفحة {next_page}"); break
+        if streak > 8: log(f"توقف: 8 أخطاء تنقل متتالية عند صفحة {next_page}"); break
         _curr = json.loads(js(send, READ_DATA_JS)).get("page", 0)
         if _curr > page_num:
             page_num = _curr - 1
@@ -440,17 +467,17 @@ while page_num < pages:
         time.sleep(3); continue
     # انتظار صبور لانتقال الجدول إلى الصفحة التالية (بدون إعادة النقر أثناء الانتقال)
     slow = 0
-    time.sleep(0.6)
+    time.sleep(0.8)
     info = json.loads(js(send, READ_DATA_JS))
     nxt_start = info.get("start", 0)
-    while nxt_start <= last_start and slow < 8:
+    while nxt_start <= last_start and slow < 15:
         time.sleep(1)
         info = json.loads(js(send, READ_DATA_JS))
         nxt_start = info.get("start", 0)
         slow += 1
     if nxt_start <= last_start:
         streak += 1
-        if streak > 5:
+        if streak > 8:
             log(f"توقف: التقدم توقف عند صفحة {next_page} (بداية {nxt_start})")
             break
         _curr = json.loads(js(send, READ_DATA_JS)).get("page", 0)
@@ -463,7 +490,7 @@ while page_num < pages:
     rows = info.get("rows",[])
     if not rows:
         streak += 1
-        if streak > 5: log(f"توقف: 5 صفحات فارغة"); break
+        if streak > 8: log(f"توقف: 8 صفحات فارغة"); break
     else:
         streak = 0; all_rows.extend(rows)
     page_num += 1
@@ -476,11 +503,14 @@ while page_num < pages:
 
 log(f"تم جمع {len(all_rows)} صف من {total}")
 
-if len(all_rows) < total:
+if total - len(all_rows) > 5:
     log(f"ERROR: الجمع ناقص {len(all_rows)} من أصل {total} — ستتم إعادة المحاولة")
     try: ws.close()
     except Exception: pass
     sys.exit(3)
+else:
+    log(f"اكتمل الجمع: {len(all_rows)} من {total} (فرق {total-len(all_rows)} صف ≈ صفحة، مقبول)")
+    pages = page_num
 
 if len(all_rows) < 1:
     log(f"ERROR: لا توجد بيانات على الإطلاق"); sys.exit(1)
