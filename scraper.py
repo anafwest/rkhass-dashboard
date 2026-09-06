@@ -346,24 +346,45 @@ def ensure_8510(send):
                 js(send, f"window.location.href='{BLS_URL}'")
                 time.sleep(8)
         steps = [
-            ("BLS\\s*8000", "BLS8000"),
-            ("BLS\\s*8500|الاستعلامات", "BLS8500"),
-            ("BLS\\s*8510|استعلام عن بيانات الطلبات|استعلام", "BLS8510"),
+            ("BLS\\s*8000\\s*-", "BLS8000"),
+            ("BLS\\s*8500\\s*-", "BLS8500"),
+            ("BLS\\s*8510\\s*-", "BLS8510"),
         ]
-        # نضغط كل مستوى وننتظر أطول (ADF يحتاج وقتاً لتوسيع القوائم الفرعية)
+        # نضغط كل مستوى، ونؤكد ظهور التالي قبل المتابعة
         for pat, desc in steps:
             if screen_is_8510(send):
                 log("شاشة BLS8510 تحققت خلال التنقل"); return True
             pos = find_clickable(send, pat)
             if pos:
                 log(f"نقر: {desc} -> {pos['t'][:40]}")
-                time.sleep(4)
+                time.sleep(6)
+                # تحقق أن هذا المستوى فعلاً فتح (بانتظار ظهور المستوى التالي)
+                for _ in range(4):
+                    if screen_is_8510(send):
+                        break
+                    time.sleep(2)
             else:
                 log(f"عنصر غير موجود: {desc}")
+                time.sleep(3)
         time.sleep(5)
         if screen_is_8510(send):
             log("شاشة BLS8510 مؤكدة بعد التنقل")
             return True
+        # إذا ظهر نص BLS8510 لكن الشاشة لم تُفتح — نضغط على عنصره مباشرة
+        body = js(send, "document.body.innerText") or ""
+        if "BLS8510" in body and not screen_is_8510(send):
+            pos = find_clickable(send, "BLS\\s*8510\\s*-")
+            if pos:
+                log(f"نقرة ثانية على 8510: {pos['t'][:40]}")
+                # استخدم .click() مباشرة على كل عنصر 8510 مرئي
+                js(send, """(function(){
+                    var els=[].slice.call(document.querySelectorAll('a,span,div,td,li,h4,h5'));
+                    var hits=els.filter(function(e){var t=(e.innerText||'').replace(/\\s+/g,' ').trim();var g=e.getBoundingClientRect();return /BLS\\s*8510\\s*-/i.test(t)&&g.width>0&&g.height>0;});
+                    if(hits.length){hits[hits.length-1].click();return hits.length;} return 0;})()""")
+                time.sleep(8)
+                if screen_is_8510(send):
+                    log("شاشة BLS8510 مؤكدة بعد النقرة الثانية")
+                    return True
     log(f"النص الحالي: {(js(send, SCREEN_TITLES_JS) or '')[:100]}")
     return False
 
