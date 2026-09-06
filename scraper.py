@@ -303,14 +303,16 @@ def find_clickable(send, pattern):
     # عناصر قوائم ADF تستجيب للنقر البرمجي المباشر أكثر موثوقية من محاكاة الماوس.
 
     # 1) نحاول النقر عبر .click() على عنصر مطابق قابل للرؤية
+    #    نفضّل عناصر <a> الأخيرة في ترتيب DOM (عناصر اللوحة الممتدة تفتح الشاشة فعلًا).
     r = js(send, "(function(){var cands=[];"
           "document.querySelectorAll('a,span,div,td,li,h4,h5').forEach(function(e){"
           "var t=(e.innerText||'').replace(/\\s+/g,' ').trim();var g=e.getBoundingClientRect();"
           "if(new RegExp('" + pattern + "','i').test(t)&&t.length<120&&g.width>0&&g.height>0&&g.x>=0&&g.y>=0){"
           "cands.push({e:e,w:g.width,h:g.height,x:g.x+g.width/2,y:g.y+g.height/2,t:t.slice(0,60)});}});"
           "if(!cands.length)return 'nf';"
-          "cands.sort(function(a,b){return (a.w*a.h)-(b.w*b.h);});"
-          "var pick=cands[0];"
+          "cands.sort(function(a,b){return (a.e.tagName=='A'?0:1)-(b.e.tagName=='A'?0:1);});"
+          "var varAs=cands.filter(function(c){return c.e.tagName=='A';});"
+          "var pick=varAs.length?varAs[varAs.length-1]:cands[cands.length-1];"
           "if(pick.e.click){pick.e.click();}return JSON.stringify({x:pick.x,y:pick.y,t:pick.t});})()")
     if isinstance(r, str) and r == 'nf':
         return None
@@ -331,8 +333,9 @@ SCREEN_TITLES_JS = ("(function(){var o=[];document.querySelectorAll('h1,h2,h3,le
                     ".forEach(function(e){var t=(e.innerText||'').trim();if(t&&t.length<80)o.push(t);});return o.join(' | ');})()")
 
 def screen_is_8510(send):
-    t = js(send, SCREEN_TITLES_JS) or ""
-    return ("BLS8510" in t) and has_search_form_js(send)
+    # شاشة BLS8510 مسؤولة عن جدول الاستعلامات masteraTable وحقل التاريخ الموجود فيه.
+    # وجود حقل Fromdate من معرفة جدول الاستعلام يعني أن الشاشة جاهزة للاستخراج مباشرة.
+    return has_search_form_js(send)
 
 def ensure_8510(send):
     """الوصول لشاشة BLS8510 مع التحقق من هويتها، مع إعادة محاولة بعد العودة للرئيسية."""
@@ -515,12 +518,8 @@ while page_num < pages:
     else:
         streak = 0; all_rows.extend(rows)
     page_num += 1
-    if page_num % 500 == 0:
-        log(f"صفحة {page_num}/{pages} ({len(all_rows)} صف) — حفظ نقطة تحقق")
-        try:
-            pd.DataFrame(all_rows, columns=COLS[:len(all_rows[0])]).to_excel("data.xlsx", index=False, engine="openpyxl")
-        except Exception as e:
-            log(f"فشل نقطة التحقق: {e}")
+    # لا حفظ نقاط تحقق أثناء الحلقة: الكتابة المتزامنة لملف كبير تجمد جلسة WebSocket
+    # (لوحظ التوقف المتكرر عند صفحات مضاعفة 500). يُكتب الملف النهائي بعد الاكتمال أدناه.
 
 log(f"تم جمع {len(all_rows)} صف من {total}")
 
