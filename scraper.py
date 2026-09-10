@@ -1,8 +1,17 @@
-import ssl, os, urllib3, time, json, sys, glob, re
+# -*- coding: utf-8 -*-
+"""سحب بيانات BLS (شاشة 8510) ورفعها لـ GitHub.
+
+إصدار مُعجَّل:
+- التنقل لشاشة 8510 عبر البحث العام (myInput) مع حتمال النقر المباشر بالمعرفات.
+- ضبط تواريخ حقيقي عبر كتابة CDP (وليس مجرد تعيين value).
+- ترقيم سريع (استطلاع 0.3 ثانية + قفز مباشر بصفحة nb_in_pg).
+- موازاة التجميع على عدة تبويبات Chrome (--tabs N، الافتراضي 4).
+"""
+import ssl, os, urllib3, time, json, sys, glob, re, threading, subprocess, urllib.parse as up
 urllib3.disable_warnings()
 ssl._create_default_https_context = ssl._create_unverified_context
 sys.stdout.reconfigure(encoding='utf-8')
-import websocket, urllib.request, pandas as pd, subprocess
+import websocket, urllib.request, pandas as pd
 from datetime import datetime
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -18,28 +27,44 @@ COLS = ["طلب الخدمة","السنة","نوع الخدمة","وصف الم�
         "رقم الهوية","تاريخ المراجعة","تاريخ المراجعة ميلادي","رقم الطلب"]
 FROM_DATE = "1447/04/13"
 TO_DATE = "1448/12/29"
+TABS = int(os.environ.get("BLS_TABS", "4"))
+MAX_WORK_PAGES = int(os.environ["BLS_MAX_WORK_PAGES"]) if os.environ.get("BLS_MAX_WORK_PAGES") else None
+TEST_ONLY = bool(os.environ.get("BLS_TEST_ONLY"))
+
+FROM_FIELD = "pt1:cBodFDC:r1:0:masteraTable:Fromdate::content"
+TO_FIELD = "pt1:cBodFDC:r1:0:masteraTable:Todate::content"
+SEARCH_BTN = "pt1:cBodFDC:r1:0:masteraTable:search"
+RNG_ID = "pt1:cBodFDC:r1:0:masteraTable:t1::nb_rng"
+NX_ID = "pt1:cBodFDC:r1:0:masteraTable:t1::nb_nx"
+PAGE_INPUT = "pt1:cBodFDC:r1:0:masteraTable:t1::nb_in_pg"
 
 def log(msg):
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     line = f"[{ts}] {msg}"
     with open("scraper_log.txt","a",encoding="utf-8") as f: f.write(line+"\n")
-    print(line)
+    print(line, flush=True)
 
 def get_tabs():
     try: return json.loads(urllib.request.urlopen(f"http://127.0.0.1:{PORT}/json",timeout=5).read())
     except: return []
 
 def connect_ws(url):
-    ws = websocket.create_connection(url, timeout=30)
+    ws = websocket.create_connection(url, timeout=60)
+    ws.settimeout(30)
     _id = [0]
     def send(m, p=None):
         _id[0] += 1
         msg = {"id":_id[0],"method":m}
         if p: msg["params"] = p
-        ws.send(json.dumps(msg))
-        while True:
-            r = json.loads(ws.recv())
-            if r.get("id") == _id[0]: return r.get("result",{})
+        for attempt in range(3):
+            try:
+                ws.send(json.dumps(msg))
+                while True:
+                    r = json.loads(ws.recv())
+                    if r.get("id") == _id[0]: return r.get("result",{})
+            except Exception:
+                time.sleep(1)
+        return {}
     return ws, send
 
 def js(send, expr, ap=False):
@@ -53,16 +78,6 @@ def kill_chrome():
     subprocess.run(["taskkill","/F","/IM","chrome.exe","/T"], capture_output=True)
     time.sleep(3)
 
-def cdp_click(send, x, y):
-    send("Input.dispatchMouseEvent", {"type":"mousePressed","x":x,"y":y,"button":"left","clickCount":1})
-    time.sleep(0.05)
-    send("Input.dispatchMouseEvent", {"type":"mouseReleased","x":x,"y":y,"button":"left","clickCount":1})
-
-def cdp_triple_click(send, x, y):
-    send("Input.dispatchMouseEvent", {"type":"mousePressed","x":x,"y":y,"button":"left","clickCount":3})
-    time.sleep(0.05)
-    send("Input.dispatchMouseEvent", {"type":"mouseReleased","x":x,"y":y,"button":"left","clickCount":3})
-
 def start_chrome():
     kill_chrome()
     subprocess.Popen([CHROME_PATH,f"--remote-debugging-port={PORT}","--remote-allow-origins=*",
@@ -74,6 +89,7 @@ def start_chrome():
         if get_tabs(): return True
     return False
 
+# ---------------- قراءة الجدول ----------------
 READ_DATA_JS = """(function(){
     var table = null;
     var tables = document.querySelectorAll('table');
@@ -129,181 +145,81 @@ READ_DATA_JS = """(function(){
     return JSON.stringify({rows:rows,total:total,pages:pages,page:page,perPage:perPage,start:start});
 })()"""
 
-def next_page_js(target):
-    return f"""(function(){{
-        var target = {target};
-        var g = '٠١٢٣٤٥٦٧٨٩';
-        var ar = target.toString().replace(/[0-9]/g, function(d){{ return g[+d]; }});
-        var anchors = document.querySelectorAll('a');
-        for(var i=0; i<anchors.length; i++){{
-            var t = anchors[i].innerText.trim();
-            if((t === String(target) || t === ar) && anchors[i].id && anchors[i].id.indexOf('nb_pg') >= 0){{
-                anchors[i].click();
-                return JSON.stringify({{ok:true, next:target}});
-            }}
-        }}
-        var nextBtn = document.getElementById('pt1:cBodFDC:r1:0:masteraTable:t1::nb_nx');
-        if(nextBtn){{
-            nextBtn.click();
-            return JSON.stringify({{ok:true, next:target, method:'next_btn'}});
-        }}
-        for(var i=0; i<anchors.length; i++){{
-            var t = anchors[i].innerText.trim();
-            if((t === String(target) || t === ar) && anchors[i].href && anchors[i].href.indexOf('void') >= 0){{
-                anchors[i].click();
-                return JSON.stringify({{ok:true, next:target}});
-            }}
-        }}
-        return JSON.stringify({{error:'link for page '+target+' not found'}});
-    }})()"""
+def read_info(send):
+    try:
+        return json.loads(js(send, READ_DATA_JS))
+    except Exception:
+        return {"rows":[],"total":0,"pages":0,"page":0,"perPage":0}
 
-EXPORT_JS = """(function(){
-    var btn = document.getElementById('pt1:cBodFDC:r1:0:masteraTable:b11');
-    if(!btn) return JSON.stringify({error:'export btn not found'});
-    btn.click();
-    return JSON.stringify({ok:true});
-})()"""
-
-FIRST_PAGE_JS = """(function(){
-    var fr = document.getElementById('pt1:cBodFDC:r1:0:masteraTable:t1::nb_fr');
-    if(fr){ fr.click(); return JSON.stringify({ok:true, method:'fr'}); }
-    var inp = document.getElementById('pt1:cBodFDC:r1:0:masteraTable:t1::nb_in_pg');
-    if(inp){
-        inp.focus(); inp.value = '1';
-        var ev = new Event('keydown', {bubbles:true, cancelable:true});
-        ev.keyCode = 13; ev.key = 'Enter';
-        inp.dispatchEvent(ev);
-        return JSON.stringify({ok:true, method:'inp'});
-    }
-    return JSON.stringify({error:'first page control not found'});
-})()"""
-
-def set_date_field(send, fid, value):
-    """ضبط حقل تاريخ مباشرة عبر تعيين قيمة العنصر DOM (لا يتراكم النص أبداً)."""
+# ---------------- date / search ----------------
+def type_into(send, fid, value):
+    """كتابة حقيقية عبر CDP ثم تحقق من القيمة النهائية."""
     for attempt in range(3):
-        r = js(send, "(function(){var el=document.getElementById('" + fid + "');if(!el)return 'nf';"
-                     "el.focus();el.removeAttribute('readonly');"
-                     "var proto=Object.getPrototypeOf(el);"
-                     "var setter=Object.getOwnPropertyDescriptor(proto,'value');"
-                     "if(setter&&setter.set)setter.set.call(el,'" + value + "');else el.value='" + value + "';"
-                     "el.dispatchEvent(new Event('input',{bubbles:true}));"
-                     "el.dispatchEvent(new Event('change',{bubbles:true}));"
-                     "el.blur();"
-                     "return JSON.stringify({val:el.value});})()")
-        if not r or r == 'nf':
-            return False
-        time.sleep(0.8)
-        got = js(send, "var el=document.getElementById('" + fid + "'); el ? el.value : ''")
+        js(send, "(function(){var e=document.getElementById('" + fid + "');"
+                 "if(!e)return;e.focus();if(e.select)e.select();})()")
+        time.sleep(0.2)
+        send("Input.dispatchKeyEvent", {"type":"keyDown","modifiers":2,"key":"a","code":"KeyA","windowsVirtualKeyCode":65})
+        send("Input.dispatchKeyEvent", {"type":"keyUp","modifiers":2,"key":"a","code":"KeyA","windowsVirtualKeyCode":65})
+        time.sleep(0.1)
+        send("Input.insertText", {"text": value})
+        time.sleep(0.2)
+        js(send, "(function(){var e=document.getElementById('" + fid + "');"
+                 "e.dispatchEvent(new Event('change',{bubbles:true}));e.blur();})()")
+        time.sleep(0.5)
+        got = js(send, "var e=document.getElementById('" + fid + "'); e ? e.value : ''")
         if got == value:
             return True
-        log(f"  إعادة محاولة ضبط {value}: القراءة الفعلية '{got}'")
+        log(f"  إعادة محاولة ضبط {fid[-18:]} = {value}: القراءة الفعلية '{got}'")
     return False
 
-def set_date_and_search(send, from_date, to_date):
-    ok_f = set_date_field(send, 'pt1:cBodFDC:r1:0:masteraTable:Fromdate::content', from_date)
-    ok_t = set_date_field(send, 'pt1:cBodFDC:r1:0:masteraTable:Todate::content', to_date)
-    log(f"From date set ({from_date}): {ok_f} | To date set ({to_date}): {ok_t}")
-    time.sleep(1)
+def ensure_dates(send):
+    ok = True
+    for name, fid, val in (("من", FROM_FIELD, FROM_DATE), ("إلى", TO_FIELD, TO_DATE)):
+        cur = js(send, "var e=document.getElementById('" + fid + "'); e ? e.value : ''")
+        if str(cur).strip() == val:
+            log(f"تاريخ {name} جاهز: {val}")
+            continue
+        ok = type_into(send, fid, val) and ok
+        log(f"ضبط تاريخ {name} = {val}: {ok}")
+    return ok
 
-    js(send, """(function(){
-        var btn = document.getElementById('pt1:cBodFDC:r1:0:masteraTable:search');
-        if(btn) btn.click();
-        return 'ok';
-    })()""")
-    time.sleep(6)
-    return ok_f and ok_t
+def js_true(send, expr):
+    v = js(send, expr)
+    return v is True or v == 1 or str(v).strip().lower() == "true"
 
-# ==================== MAIN ====================
-log("="*60)
-log("بدء السحب التلقائي")
+def has_form(send):
+    return js_true(send, "!!document.getElementById('" + FROM_FIELD + "')")
 
-tabs = get_tabs()
-has_bls = any("BLS" in t.get("url","") and "login" not in t.get("url","").lower()
-              for t in tabs if t.get("type")=="page")
+def click_search(send):
+    js(send, "(function(){var b=document.getElementById('" + SEARCH_BTN + "');"
+             "if(b){b.click();return 'ok';}return 'nf';})()")
 
-if not has_bls:
-    # لا نقتل Chrome حتى نُبقي جلسات التبويبات الأخرى (مثل UPS) حيّة —
-    # نفتح تبويب BLS جديداً في نفس المتصفح بدلاً من ذلك.
-    try:
-        import urllib.parse as _up
-        _nb = json.loads(urllib.request.urlopen(
-            f"http://127.0.0.1:{PORT}/json/new?{_up.quote('about:blank', safe='')}",
-            method="PUT", timeout=8).read())
-        log("فتح تبويب BLS جديد في نفس المتصفح")
-    except Exception as e:
-        log(f"تعذر فتح تبويب جديد، تشغيل Chrome: {e}")
-        if not start_chrome():
-            log("FATAL: Chrome didnt start"); sys.exit(1)
-        log("انتظار Chrome+SSO..."); time.sleep(20)
+# ---------------- navigation to BLS8510 ----------------
+SHOW_CHAIN_JS = "(function(sel){var e=document.querySelector(sel);if(!e)return 'missing';" \
+    "var n=e;for(var i=0;i<8&&n;i++){n.style.setProperty('display','block','important');" \
+    "n.style.setProperty('visibility','visible','important');n.style.setProperty('opacity','1','important');" \
+    "n.style.setProperty('max-height','none','important');n=n.parentElement;}return 'ok';})"
 
-for attempt in range(5):
-    tabs = get_tabs()
-    ws_url = None
-    # نفضّل تبويب BLS حصراً (المسار BLS/faces) حتى لا نلتقط تبويب UPS
-    for t in tabs:
-        u = t.get("url","")
-        if t.get("type")=="page" and "BLS/faces" in u:
-            ws_url = t.get("webSocketDebuggerUrl"); break
-    if not ws_url:
-        # fallback: تبويب about:blank أنشأناه للتو على BLS — أو أي تبويب BLS
-        for t in tabs:
-            u = t.get("url","")
-            if t.get("type")=="page" and "BLS" in u and u != "about:blank":
-                ws_url = t.get("webSocketDebuggerUrl"); break
-    if ws_url: break
-    log(f"انتظار تبويب BLS... ({attempt+1})"); time.sleep(5)
-
-if not ws_url:
-    log("FATAL: no tab"); sys.exit(1)
-
-ws, send = connect_ws(ws_url)
-url = js(send, "document.location.href")
-
-# التاريخ الهجري اليوم (تقويم أم القرى الرسمي) — نهاية الدورة تلقائية ومستمرة
-try:
-    hjs = ("(function(){var f=new Intl.DateTimeFormat('en-u-ca-islamic-umalqura',"
-           "{year:'numeric',month:'2-digit',day:'2-digit',timeZone:'Asia/Riyadh'});"
-           "var p={};f.formatToParts(new Date()).forEach(function(x){p[x.type]=x.value;});"
-           "return p.year+'/'+p.month+'/'+p.day;})()")
-    hijri_today = js(send, hjs)
-    if hijri_today and re.match(r'^\d{4}/\d{2}/\d{2}$', str(hijri_today)):
-        TO_DATE = str(hijri_today)
-        log(f"نهاية الفترة = اليوم الواقعي: {TO_DATE}")
-except Exception as e:
-    log(f"تعذر حساب التاريخ الهجري اليوم ({e}) — سيبقى الثابت {TO_DATE}")
-log(f"متصل: {url[:100]}")
-
-for i in range(10):
-    r = js(send, 'typeof AdfPage !== "undefined" ? "ok" : "wait"')
-    if r == "ok": break
-    log(f"انتظار ADF... ({i+1})"); time.sleep(3)
-
-url = js(send, "document.location.href")
-log(f"الرابط: {url[:100]}")
-
-if "BLS" not in url:
-    log("الانتقال لـ BLS...")
-    js(send, f"window.location.href='{BLS_URL}'")
-    time.sleep(15)
-    url = js(send, "document.location.href")
-    log(f"بعد الانتقال: {url[:100]}")
-
-if "login" in url.lower():
-    log("صفحة دخول - محاولة إعادة تأسيس الجلسة...")
-    js(send, f"window.location.href='{BLS_SSO_URL}'")
-    time.sleep(20)
-    url = js(send, "document.location.href")
-    log(f"BLS SSO retry: {url[:100]}")
-
-if "login" in url.lower():
-    log("ما نقدر نتجاوز صفحة الدخول"); ws.close(); sys.exit(1)
+def myinput_open_8510(send):
+    """فتح الشاشة عبر البحث العام في شاشات النظام (يعمل حتى لو كانت القائمة مطوية)."""
+    if not js_true(send, "!!document.getElementById('myInput')"):
+        return False
+    js(send, "(function(){var e=document.getElementById('myInput');e.focus();})()")
+    send("Input.dispatchKeyEvent", {"type":"keyDown","modifiers":2,"key":"a","code":"KeyA","windowsVirtualKeyCode":65})
+    send("Input.dispatchKeyEvent", {"type":"keyUp","modifiers":2,"key":"a","code":"KeyA","windowsVirtualKeyCode":65})
+    send("Input.insertText", {"text": "8510"})
+    t0 = time.time()
+    while time.time() - t0 < 8:
+        if js_true(send, "(function(){var a=document.getElementById('pt1:SearchLi8510');" \
+                         "return !!a&&a.offsetParent!==null;})()"):
+            break
+        time.sleep(0.5)
+    js(send, SHOW_CHAIN_JS + "('#pt1:SearchLi8510')")
+    js(send, "(function(){var a=document.getElementById('pt1:SearchLi8510');" \
+             "if(a){a.click();return 'ok';}return 'nf';})()")
+    return wait_form(send, 20)
 
 def find_clickable(send, pattern):
-    # يرجع الإحداثيات (للسجل) وينقر العنصر مباشرة عبر element.click()
-    # عناصر قوائم ADF تستجيب للنقر البرمجي المباشر أكثر موثوقية من محاكاة الماوس.
-
-    # 1) نحاول النقر عبر .click() على عنصر مطابق قابل للرؤية
-    #    نفضّل عناصر <a> الأخيرة في ترتيب DOM (عناصر اللوحة الممتدة تفتح الشاشة فعلًا).
     r = js(send, "(function(){var cands=[];"
           "document.querySelectorAll('a,span,div,td,li,h4,h5').forEach(function(e){"
           "var t=(e.innerText||'').replace(/\\s+/g,' ').trim();var g=e.getBoundingClientRect();"
@@ -320,238 +236,346 @@ def find_clickable(send, pattern):
         return json.loads(r)
     except Exception:
         return None
-    r = js(send, JS)
-    if isinstance(r, str) and r != 'not found':
-        try: return json.loads(r)
-        except Exception: return None
-    return None
 
-def has_search_form_js(send):
-    return js(send, "document.getElementById('pt1:cBodFDC:r1:0:masteraTable:Fromdate::content') ? 'yes' : 'no'") == 'yes'
-
-SCREEN_TITLES_JS = ("(function(){var o=[];document.querySelectorAll('h1,h2,h3,legend,strong,.af_panelWindow_title')"
-                    ".forEach(function(e){var t=(e.innerText||'').trim();if(t&&t.length<80)o.push(t);});return o.join(' | ');})()")
-
-def screen_is_8510(send):
-    # شاشة BLS8510 مسؤولة عن جدول الاستعلامات masteraTable وحقل التاريخ الموجود فيه.
-    # وجود حقل Fromdate من معرفة جدول الاستعلام يعني أن الشاشة جاهزة للاستخراج مباشرة.
-    return has_search_form_js(send)
+def wait_form(send, timeout=30):
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        if has_form(send): return True
+        time.sleep(0.5)
+    return has_form(send)
 
 def ensure_8510(send):
-    """الوصول لشاشة BLS8510 مع التحقق من هويتها، مع إعادة محاولة بعد العودة للرئيسية."""
-    for attempt in range(5):
-        if screen_is_8510(send):
-            log(f"شاشة BLS8510 مؤكدة (المحاولة {attempt+1})")
+    """ضمان فتح شاشة 8510 (حقل استعلام جاهز) بأي وسيلة متاحة."""
+    if wait_form(send, 5):
+        log("شاشة BLS8510 مفتوحة مسبقاً")
+        return True
+    # البحث العام في شاشات النظام (يعمل حتى لو كانت القائمة مطوية)
+    if myinput_open_8510(send):
+        log("شاشة BLS8510 فُتحت عبر البحث العام")
+        return True
+    # إجبار إظهار القائمة ثم النقر المباشر
+    for cid in ("pt1:SearchLi8510", "pt1:SearchLi8500", "pt1:j_idt19"):
+        js(send, SHOW_CHAIN_JS + "('#" + cid + "')")
+        js(send, "(function(){var e=document.getElementById('" + cid + "');"
+                 "if(e){e.click();return 'ok';}return 'missing';})()")
+        if wait_form(send, 15):
+            log(f"شاشة BLS8510 فُتحت عبر القائمة ({cid})")
             return True
-        if attempt > 0 or not has_search_form_js(send):
-            url = js(send, "document.location.href") or ""
-            if "home" not in url:
-                js(send, f"window.location.href='{BLS_URL}'")
-                time.sleep(8)
-        steps = [
-            ("BLS\\s*8000\\s*-", "BLS8000"),
-            ("BLS\\s*8500\\s*-", "BLS8500"),
-            ("BLS\\s*8510\\s*-", "BLS8510"),
-        ]
-        # نضغط كل مستوى، ونؤكد ظهور التالي قبل المتابعة
-        for pat, desc in steps:
-            if screen_is_8510(send):
-                log("شاشة BLS8510 تحققت خلال التنقل"); return True
-            pos = find_clickable(send, pat)
-            if pos:
-                log(f"نقر: {desc} -> {pos['t'][:40]}")
-                time.sleep(6)
-                # تحقق أن هذا المستوى فعلاً فتح (بانتظار ظهور المستوى التالي)
-                for _ in range(4):
-                    if screen_is_8510(send):
-                        break
-                    time.sleep(2)
-            else:
-                log(f"عنصر غير موجود: {desc}")
-                time.sleep(3)
-        time.sleep(5)
-        if screen_is_8510(send):
-            log("شاشة BLS8510 مؤكدة بعد التنقل")
-            return True
-        # إذا ظهر نص BLS8510 لكن الشاشة لم تُفتح — نضغط على عنصره مباشرة
-        body = js(send, "document.body.innerText") or ""
-        if "BLS8510" in body and not screen_is_8510(send):
-            pos = find_clickable(send, "BLS\\s*8510\\s*-")
-            if pos:
-                log(f"نقرة ثانية على 8510: {pos['t'][:40]}")
-                # استخدم .click() مباشرة على كل عنصر 8510 مرئي
-                js(send, """(function(){
-                    var els=[].slice.call(document.querySelectorAll('a,span,div,td,li,h4,h5'));
-                    var hits=els.filter(function(e){var t=(e.innerText||'').replace(/\\s+/g,' ').trim();var g=e.getBoundingClientRect();return /BLS\\s*8510\\s*-/i.test(t)&&g.width>0&&g.height>0;});
-                    if(hits.length){hits[hits.length-1].click();return hits.length;} return 0;})()""")
-                time.sleep(8)
-                if screen_is_8510(send):
-                    log("شاشة BLS8510 مؤكدة بعد النقرة الثانية")
-                    return True
-    log(f"النص الحالي: {(js(send, SCREEN_TITLES_JS) or '')[:100]}")
+    # ملاذ أخير: التسلسل عبر القائمة الجانبية (أنماط مقيدة بالبداية)
+    for pat, desc in (("^BLS\\s*8000\\b", "BLS8000"), ("^BLS\\s*8500\\b", "BLS8500"),
+                      ("^BLS\\s*8510\\b", "BLS8510")):
+        pos = find_clickable(send, pat)
+        if pos:
+            log(f"نقر: {desc}")
+            if wait_form(send, 12): return True
+    return wait_form(send, 15)
+
+# ---------------- pagination ----------------
+def rng_txt(send):
+    return js(send, "(function(){var r=document.getElementById('" + RNG_ID + "');"
+              "return r?r.innerText.replace(/\\s+/g,' ').trim():'nf';})()")
+
+def start_num(s):
+    try: return int(s.split('-')[0].strip().strip('('))
+    except: return -1
+
+def wait_search(send, timeout=15):
+    t0 = time.time(); last = None
+    while time.time() - t0 < timeout:
+        info = read_info(send)
+        last = info
+        if info.get("rows") and info.get("perPage", 0) >= 5:
+            return info
+        time.sleep(0.5)
+    return last
+
+def jump_page(send, pg, perPage):
+    for attempt in range(3):
+        js(send, "(function(){var e=document.getElementById('" + PAGE_INPUT + "');"
+                 "e.focus();e.value='" + str(pg) + "';"
+                 "var ev=new KeyboardEvent('keydown',{bubbles:true,cancelable:true,keyCode:13,key:'Enter'});"
+                 "e.dispatchEvent(ev);})()")
+        t0 = time.time()
+        while time.time() - t0 < 8:
+            s = rng_txt(send)
+            info = read_info(send)
+            if info.get("page") == pg or start_num(s) == (pg - 1) * perPage + 1:
+                return True
+            time.sleep(0.3)
+        log(f"  قفز صفحة {pg} لم يُؤكد (محاولة {attempt+1})")
     return False
 
-if not ensure_8510(send):
-    log("ERROR: تعذر الوصول لشاشة BLS8510"); ws.close(); sys.exit(1)
+def click_next(send):
+    js(send, "(function(){var a=document.getElementById('" + NX_ID + "');"
+             "if(a){a.click();return 'ok';}return 'nf';})()")
 
-log("ضبط التواريخ والبحث...")
-ok_dates = set_date_and_search(send, FROM_DATE, TO_DATE)
-if not ok_dates:
-    log("WARN: لم يتأكد ضبط التواريخ — إعادة المحاولة مرة واحدة")
-    time.sleep(3)
-    ok_dates = set_date_and_search(send, FROM_DATE, TO_DATE)
+def wait_advance(send, from_start, timeout=8):
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        s = rng_txt(send)
+        n = start_num(s)
+        if n > from_start:
+            return read_info(send)
+        time.sleep(0.25)
+    return None
 
-for i in range(12):
-    info = json.loads(js(send, READ_DATA_JS))
-    if info.get("rows") and info.get("perPage", 0) >= 5:
-        break
-    log(f"انتظار اكتمال الجدول بعد البحث... ({i+1}, perPage={info.get('perPage')})"); time.sleep(5)
-
-if not info.get("rows") or info.get("perPage", 0) < 5:
-    log("ERROR: الجدول لم يكتمل (perPage<5)")
-    # إعادة البحث لضمان قراءة سليمة
-    set_date_and_search(send, FROM_DATE, TO_DATE)
-    time.sleep(6)
-    for i in range(8):
-        info = json.loads(js(send, READ_DATA_JS))
-        if info.get("rows") and info.get("perPage", 0) >= 5:
+def collect_main(send, start_page, end_page, perPage):
+    if end_page < start_page:
+        return []
+    rows_all = []
+    if not jump_page(send, start_page, perPage):
+        log(f"  تعذر القفز لبداية الشريحة {start_page}")
+        return rows_all
+    info = read_info(send)
+    s0 = start_num(rng_txt(send))
+    if s0 != (start_page - 1) * perPage + 1:
+        log(f"  بداية الشريحة خاطئة: {s0} بدل {(start_page-1)*perPage+1}")
+        return rows_all
+    cur = start_page
+    streak = 0
+    while cur <= end_page:
+        info = read_info(send)
+        rows = info.get("rows", [])
+        if rows:
+            rows_all.extend(rows)
+        if cur >= end_page:
             break
-        time.sleep(4)
+        click_next(send)
+        info = wait_advance(send, cur * perPage, timeout=8)
+        if not info:
+            streak += 1
+            log(f"  تقدم الصفحة {cur+1} لم يُؤكد ({streak})")
+            if streak >= 4:
+                log(f"  إلغاء الشريحة عند صفحة {cur}")
+                return rows_all
+            time.sleep(1)
+            continue
+        streak = 0
+        cur += 1
+        if MAX_WORK_PAGES and cur - start_page >= MAX_WORK_PAGES:
+            break
+    return rows_all
+
+# ---------------- worker ----------------
+def open_tab():
+    try:
+        req = urllib.request.Request(f"http://127.0.0.1:{PORT}/json/new?" + up.quote("about:blank", safe=''), method="PUT")
+        return json.loads(urllib.request.urlopen(req, timeout=8).read())
+    except Exception:
+        return None
+
+def worker(k, start_page, end_page, perPage, results):
+    ws = None
+    try:
+        nb = open_tab()
+        if not nb:
+            log(f"عامل {k}: تعذر فتح تبويب")
+            results[k] = ([], "no-tab"); return
+        ws, send = connect_ws(nb["webSocketDebuggerUrl"])
+        js(send, f"window.location.href='{BLS_URL}'")
+        t0 = time.time()
+        while time.time() - t0 < 25:
+            if js(send, 'typeof AdfPage !== "undefined" ? "ok" : "wait"') == "ok":
+                break
+            time.sleep(2)
+        # شاشة 8510 (جلسة ADF تحفظ الشاشة غالباً عبر النوافذ، مع بديل البحث العام)
+        if not wait_form(send, 25):
+            js(send, f"window.location.href='{BLS_SSO_URL}'")
+            wait_form(send, 25)
+        ensure_8510(send)
+        if not has_form(send):
+            log(f"عامل {k}: شاشة 8510 لم تُفتح")
+            results[k] = ([], "8510-open"); return
+        ensure_dates(send)
+        click_search(send)
+        info = wait_search(send, timeout=20)
+        if not info.get("rows"):
+            log(f"عامل {k}: البحث لم يُرجع بيانات")
+            results[k] = ([], "search"); return
+        pp = info.get("perPage", perPage) or perPage
+        rows = collect_main(send, start_page, end_page, pp)
+        log(f"عامل {k}: شريحة صفحات {start_page}-{end_page}: {len(rows)} صف")
+        results[k] = (rows, "ok")
+    except Exception as e:
+        log(f"عامل {k}: خطأ {e}")
+        results[k] = ([], str(e)[:120])
+    finally:
+        try: send("Page.close")
+        except Exception: pass
+        try: ws.close()
+        except Exception: pass
+
+# ---------------- main ----------------
+def main():
+    log("="*60)
+    log("بدء السحب التلقائي (نسخة مُعجَّلة)")
+
+    tabs = get_tabs()
+    ws_url = None
+    for t in tabs:
+        u = t.get("url","")
+        if t.get("type")=="page" and "BLS/faces" in u:
+            ws_url = t.get("webSocketDebuggerUrl"); break
+    if not ws_url:
+        for t in tabs:
+            u = t.get("url","")
+            if t.get("type")=="page" and "BLS" in u and u != "about:blank":
+                ws_url = t.get("webSocketDebuggerUrl"); break
+    if not ws_url:
+        log("لا يوجد تبويب BLS")
+        if not start_chrome():
+            log("FATAL: Chrome لم يبدأ"); sys.exit(1)
+        time.sleep(20)
+        tabs = get_tabs()
+        for t in tabs:
+            u = t.get("url","")
+            if t.get("type")=="page" and "BLS" in u:
+                ws_url = t.get("webSocketDebuggerUrl"); break
+    if not ws_url:
+        log("FATAL: لا تبويب BLS"); sys.exit(1)
+
+    ws, send = connect_ws(ws_url)
+    url = js(send, "document.location.href") or ""
+    log(f"الرابط: {url[:80]}")
+    if "login" in url.lower():
+        js(send, f"window.location.href='{BLS_SSO_URL}'")
+        time.sleep(15)
+    t0 = time.time()
+    while time.time() - t0 < 30:
+        if js(send, 'typeof AdfPage !== "undefined" ? "ok" : "wait"') == "ok":
+            break
+        time.sleep(2)
+
+    if not ensure_8510(send):
+        log("ERROR: تعذر الوصول لشاشة BLS8510")
+        try: ws.close()
+        except Exception: pass
+        sys.exit(1)
+
+    ensure_dates(send)
+    log("بحث...")
+    click_search(send)
+    info = wait_search(send, timeout=20)
     if not info.get("rows") or info.get("perPage", 0) < 5:
-        log("ERROR: لا توجد بيانات كاملة بعد إعادة البحث"); ws.close(); sys.exit(1)
+        log("ERROR: الجدول لم يكتمل بعد البحث")
+        try: ws.close()
+        except Exception: pass
+        sys.exit(1)
 
-total = info["total"]; pages = info["pages"]
-log(f"بيانات: {total} سجل، {pages} صفحة ({info['perPage']} لكل صفحة)")
+    total = info["total"]; perPage = info["perPage"]
+    pages = int(total / perPage) + (1 if total % perPage else 0)
+    log(f"بيانات: {total} سجل، {pages} صفحة ({perPage} لكل صفحة)")
+    if total > 20000:
+        log(f"WARN: إجمالي {total} أكبر من المتوقع — فلتر التواريخ لم يُطبق على الأرجح")
+        try: ws.close()
+        except Exception: pass
+        sys.exit(2)
 
-# عدد الصفحات الحقيقي من شريط الترقيم (قد يختلف عن محسوب perPage)
-try:
-    cnt_txt = js(send, "(function(){var c=document.getElementById('pt1:cBodFDC:r1:0:masteraTable:t1::nb_cnt'); return c ? c.innerText : '';})()") or ""
-    m = re.search(r'من\s+([0-9][0-9,]*)\b', cnt_txt.replace('\t', ' '))
-    if m:
-        pages_real = int(m.group(1).replace(',', ''))
-        if pages_real != pages:
-            log(f"تصحيح: عدد الصفحات الحقيقي {pages_real} بدلاً من {pages}")
-            pages = pages_real
-except Exception as e:
-    log(f"تعذر قراءة عدد الصفحات الحقيقي: {e}")
+    n_tabs = max(1, min(TABS, pages))
+    # شرائح متساوية الحجم
+    sizes = []
+    base = pages // n_tabs; rem = pages % n_tabs
+    start_p = 1
+    for k in range(n_tabs):
+        seg = base + (1 if k < rem else 0)
+        sizes.append((start_p, start_p + seg - 1))
+        start_p += seg
 
-# حارس: إذا فشل فلتر التواريخ وعادت كل الفترة (أكثر من المتوقع بكثير) نلغي التشغيل لإعادة المحاولة
-if total > 20000:
-    log(f"WARN: إجمالي {total} أكبر من المتوقع (~12000) — فلتر التواريخ لم يُطبق على الأرجح")
-    ws.close(); sys.exit(2)
+    results = {}
+    threads = []
+    log(f"توزيع {pages} صفحة على {n_tabs} عامل: {[(a,b) for a,b in sizes]}")
+    for k, (a, b) in enumerate(sizes):
+        if k == 0:
+            # العامل الرئيسي: الشريحة الأولى مباشرة (البحث جاهز)
+            th = threading.Thread(target=worker_main_slice, args=(k, a, b, perPage, ws, send, results))
+        else:
+            th = threading.Thread(target=worker, args=(k, a, b, perPage, results))
+        th.daemon = True
+        th.start()
+        threads.append((k, th))
+    for k, th in threads:
+        th.join()
 
-# التأكد من البدء من الصفحة الأولى (البحث قد يترك الجدول على آخر صفحة من جلسة سابقة)
-for attempt_fp in range(4):
-    r = json.loads(js(send, FIRST_PAGE_JS))
-    time.sleep(0.8)
-    chk = json.loads(js(send, READ_DATA_JS))
-    if chk.get("page", 0) == 1:
-        info = chk
-        break
-    log(f"  محاولة الوصول لصفحة 1 ({attempt_fp+1}): الصفحة الحالية {chk.get('page')}")
-if info.get("page", 0) != 1:
-    log("ERROR: تعذر الوصول للصفحة الأولى"); ws.close(); sys.exit(3)
+    # ترتيب وتجميع
+    all_rows = []
+    missing = []
+    for k in range(n_tabs):
+        rows, status = results.get(k, ([], "missing"))
+        if rows:
+            all_rows.extend(rows)
+        if status != "ok":
+            missing.append(k)
 
-all_rows = list(info["rows"])
-page_num = info["page"]
-last_start = info.get("start", 0)
-streak = 0
-log(f"جمع: صفحة {page_num}/{pages} ({len(all_rows)} صف)")
+    # إعادة محاولة الشرائح الفاشلة تسلسلياً
+    for k in missing:
+        a, b = sizes[k]
+        log(f"إعادة محاولة الشريحة {k} ({a}-{b}) تسلسلياً...")
+        if not has_form(send): ensure_8510(send)
+        ensure_dates(send); click_search(send)
+        info = wait_search(send, timeout=20)
+        if info.get("rows"):
+            rows = collect_main(send, a, b, perPage)
+            all_rows.extend(rows)
+            log(f"استرجاع الشريحة {k}: {len(rows)} صف")
 
-if os.environ.get("BLS_DIAG"):
-    d = js(send, """(function(){
-        var t = document.querySelector('table.af_table_data-table');
-        var rng = document.getElementById('pt1:cBodFDC:r1:0:masteraTable:t1::nb_rng');
-        var cnt = document.getElementById('pt1:cBodFDC:r1:0:masteraTable:t1::nb_cnt');
-        var cols = (t && t.tHead && t.tHead.rows && t.tHead.rows[0]) ? t.tHead.rows[0].cells.length : -1;
-        var body = (t && t.tBodies && t.tBodies[0]) ? t.tBodies[0].rows.length : -1;
-        var out = {bodyRows: body, cols: cols,
-                   rng: rng ? rng.innerText : '', cnt: cnt ? cnt.innerText : ''};
-        var ls = [], pvv = [];
-        document.querySelectorAll('*').forEach(function(e){
-            if(e.id && e.id.indexOf('nb_ls')>=0) ls.push(e.id);
-            if(e.id && e.id.indexOf('nb_pv')>=0) pvv.push(e.id);
-        });
-        out.lsIds = ls; out.pvIds = pvv;
-        return JSON.stringify(out);
-    })()""")
-    log("DIAG: " + (d or "")[:1600])
-    ws.close(); sys.exit(0)
+    # فحص الاكتمال الأساسي (عدم وجود تكرار مضاعف عبر الشرائح)
+    seen = set()
+    dedup = []
+    for r in all_rows:
+        key = tuple(r)
+        if key in seen:
+            continue
+        seen.add(key); dedup.append(r)
+    all_rows = dedup
 
-while page_num < pages:
-    next_page = page_num + 1
-    r = json.loads(js(send, next_page_js(next_page)))
-    if "error" in r:
-        streak += 1
-        if streak > 8: log(f"توقف: 8 أخطاء تنقل متتالية عند صفحة {next_page}"); break
-        _curr = json.loads(js(send, READ_DATA_JS)).get("page", 0)
-        if _curr > page_num:
-            page_num = _curr - 1
-            streak = 0
-        time.sleep(3); continue
-    # انتظار صبور لانتقال الجدول إلى الصفحة التالية (بدون إعادة النقر أثناء الانتقال)
-    slow = 0
-    time.sleep(0.8)
-    info = json.loads(js(send, READ_DATA_JS))
-    nxt_start = info.get("start", 0)
-    while nxt_start <= last_start and slow < 15:
-        time.sleep(1)
-        info = json.loads(js(send, READ_DATA_JS))
-        nxt_start = info.get("start", 0)
-        slow += 1
-    if nxt_start <= last_start:
-        streak += 1
-        if streak > 8:
-            log(f"توقف: التقدم توقف عند صفحة {next_page} (بداية {nxt_start})")
-            break
-        _curr = json.loads(js(send, READ_DATA_JS)).get("page", 0)
-        if _curr > page_num:
-            page_num = _curr - 1
-            streak = 0
-        time.sleep(1)
-        continue
-    last_start = nxt_start
-    rows = info.get("rows",[])
-    if not rows:
-        streak += 1
-        if streak > 8: log(f"توقف: 8 صفحات فارغة"); break
+    log(f"تم جمع {len(all_rows)} صف (متوقع ~{total})")
+    if TEST_ONLY:
+        log("=== وضع اختبار: بدون حفظ/رفع ===")
+        try: ws.close()
+        except Exception: pass
+        return 0 if len(all_rows) > 0 else 1
+
+    if len(all_rows) < total - 5:
+        log(f"ERROR: الجمع ناقص {len(all_rows)} من أصل {total} — ستتم إعادة المحاولة")
+        try: ws.close()
+        except Exception: pass
+        sys.exit(3)
+
+    n_cols = len(all_rows[0])
+    df = pd.DataFrame(all_rows, columns=COLS[:n_cols])
+    log(f"DataFrame: {len(df)} صف، {len(df.columns)} عمود")
+    df.to_excel("data.xlsx", index=False, engine="openpyxl")
+    log(f"حفظ data.xlsx ({os.path.getsize('data.xlsx')//1024} KB)")
+
+    os.chdir(PROJECT_DIR)
+    subprocess.run(["git","add","-A"], check=True, capture_output=True)
+    r = subprocess.run(["git","commit","-m",f"update data {datetime.now().strftime('%Y-%m-%d %H:%M')}"],
+                        capture_output=True, text=True)
+    if r.returncode == 0:
+        p = subprocess.run(["git","push","origin","main"], capture_output=True, text=True, timeout=120)
+        if p.returncode == 0: log("تم الرفع لـ GitHub")
+        else: log(f"خطأ الرفع: {p.stderr[:200]}")
     else:
-        streak = 0; all_rows.extend(rows)
-    page_num += 1
-    # لا حفظ نقاط تحقق أثناء الحلقة: الكتابة المتزامنة لملف كبير تجمد جلسة WebSocket
-    # (لوحظ التوقف المتكرر عند صفحات مضاعفة 500). يُكتب الملف النهائي بعد الاكتمال أدناه.
+        log("لا توجد تغييرات")
 
-log(f"تم جمع {len(all_rows)} صف من {total}")
+    ws.close()
+    log("=== انتهت العملية بنجاح ===")
+    return 0
 
-if total - len(all_rows) > 5:
-    log(f"ERROR: الجمع ناقص {len(all_rows)} من أصل {total} — ستتم إعادة المحاولة")
-    try: ws.close()
-    except Exception: pass
-    sys.exit(3)
-else:
-    log(f"اكتمل الجمع: {len(all_rows)} من {total} (فرق {total-len(all_rows)} صف ≈ صفحة، مقبول)")
-    pages = page_num
+def worker_main_slice(k, start_page, end_page, perPage, ws, send, results):
+    try:
+        rows = collect_main(send, start_page, end_page, perPage)
+        log(f"عامل {k} (رئيسي): شريحة {start_page}-{end_page}: {len(rows)} صف")
+        results[k] = (rows, "ok")
+    except Exception as e:
+        log(f"عامل {k} (رئيسي): خطأ {e}")
+        results[k] = ([], str(e)[:120])
 
-if len(all_rows) < 1:
-    log(f"ERROR: لا توجد بيانات على الإطلاق"); sys.exit(1)
-
-n_cols = len(all_rows[0])
-df = pd.DataFrame(all_rows, columns=COLS[:n_cols])
-log(f"DataFrame: {len(df)} صف، {len(df.columns)} عمود")
-
-df.to_excel("data.xlsx", index=False, engine="openpyxl")
-log(f"حفظ data.xlsx ({os.path.getsize('data.xlsx')//1024} KB)")
-
-os.chdir(PROJECT_DIR)
-subprocess.run(["git","add","-A"], check=True, capture_output=True)
-r = subprocess.run(["git","commit","-m",f"update data {datetime.now().strftime('%Y-%m-%d %H:%M')}"],
-                    capture_output=True, text=True)
-if r.returncode == 0:
-    p = subprocess.run(["git","push","origin","main"], capture_output=True, text=True, timeout=60)
-    if p.returncode == 0: log("تم الرفع لـ GitHub")
-    else: log(f"خطأ الرفع: {p.stderr[:200]}")
-else:
-    log("لا توجد تغييرات")
-
-ws.close()
-log("=== انتهت العملية بنجاح ===")
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except SystemExit:
+        raise
+    except Exception as e:
+        log(f"خطأ عام: {e}")
+        sys.exit(1)
