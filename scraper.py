@@ -75,8 +75,20 @@ def js(send, expr, ap=False):
     return v
 
 def kill_chrome():
-    subprocess.run(["taskkill","/F","/IM","chrome.exe","/T"], capture_output=True)
-    time.sleep(3)
+    """قتل عمليات Chrome الخاصة ببروفايل السحب فقط (لا يمس متصفح المستخدم العادي)."""
+    try:
+        r = subprocess.run(
+            ["powershell","-NoProfile","-Command",
+             "Get-CimInstance Win32_Process -Filter \\\"Name='chrome.exe'\\\" | "
+             "Where-Object { $_.CommandLine -like '*ScraperProfile*' } | "
+             "ForEach-Object { $_.ProcessId }"],
+            capture_output=True, text=True, timeout=30)
+        ids = [int(x) for x in r.stdout.split() if x.strip().isdigit()]
+        for pid in ids:
+            subprocess.run(["taskkill","/F","/PID",str(pid)], capture_output=True)
+        time.sleep(3)
+    except Exception:
+        pass
 
 def start_chrome():
     kill_chrome()

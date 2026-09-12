@@ -1,0 +1,9 @@
+{
+  "telegram": {
+    "bot_token": "",
+    "chat_id": ""
+  },
+  "whatsapp": {
+    "phone": "966509739793"
+  }
+}

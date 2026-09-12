@@ -71,7 +71,7 @@ def git_push_if_changed():
         return "git error: " + str(e)[:150]
 
 write_log("===== تشغيل خط الإنتاج التلقائي =====")
-bls = run_script("scraper.py", "BLS", retries=2)
+bls = run_script("run_fast.py", "BLS", retries=2)
 time.sleep(5)
 ups = run_script("ups_scraper.py", "UPS", retries=1)
 push = git_push_if_changed()

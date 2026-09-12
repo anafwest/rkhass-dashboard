@@ -67,8 +67,48 @@ READ_PAGE_JS = """(function(){
     return JSON.stringify(result);
 })()"""
 
+PAGE_URL = "https://ups-backoffice.alriyadh.gov.sa/ar/building-license-department?activeTab=requests"
+
 def go_to_page(send, page):
-    js(send, f"window.location.href='/ar/building-license-department?activeTab=requests&page={page}'")
+    """التنقل عبر Page.navigate (CDP) يحافظ على اتصال WebSocket ولا يُفقد الجلسة."""
+    if page <= 1:
+        send("Page.navigate", {"url": PAGE_URL})
+    else:
+        send("Page.navigate", {"url": PAGE_URL + f"&page={page}"})
+    time.sleep(3)
+
+def find_tab_url():
+    for t in get_tabs():
+        if t.get("type") == "page" and "ups-backoffice" in t.get("url", ""):
+            return t.get("webSocketDebuggerUrl")
+    return None
+
+def reconnect():
+    """إعادة الاتصال بالتبويب الحالي إذا انقطع WebSocket."""
+    for i in range(8):
+        ws_url = find_tab_url()
+        if ws_url:
+            try:
+                ws, send = connect_ws(ws_url)
+                return ws, send
+            except Exception:
+                pass
+        time.sleep(5)
+    return None, None
+
+def run_safe(send, fn, *a, **k):
+    """تنفيذ دالة مع إعادة اتصال تلقائية عند انقطاع WebSocket."""
+    for attempt in range(4):
+        try:
+            return fn(send, *a, **k)
+        except Exception as e:
+            t = time.strftime("%H:%M:%S")
+            print(f"  [{t}] انقطع الاتصال ({e}) — إعادة الاتصال ({attempt+1})")
+            ws, send = reconnect()
+            if not send:
+                return None
+            time.sleep(3)
+    return None
 
 def wait_for_page(send, target):
     for i in range(14):
@@ -121,7 +161,7 @@ ws, send = connect_ws(ws_url)
 # Go to page 1 first
 go_to_page(send, 1)
 log("الانتقال لصفحة 1...")
-info = wait_for_page(send, 1)
+info = run_safe(send, wait_for_page, 1) or {}
 time.sleep(3)
 
 total_pages = info.get("total", 0)
@@ -135,7 +175,7 @@ streak = 0
 for page in range(1, total_pages + 1):
     if page > 1:
         go_to_page(send, page)
-        info = wait_for_page(send, page)
+        info = run_safe(send, wait_for_page, page) or {}
     rows = info.get("rows", [])
     if rows:
         all_rows.extend(rows)

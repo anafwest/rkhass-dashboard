@@ -547,8 +547,10 @@ new_pct = round(new / total * 100, 1) if total else 0
 
 avg_duration = 0
 if "مدة الإنجاز (أيام)" in df_f.columns:
-    total_duration = df_f["مدة الإنجاز (أيام)"].dropna().sum()
-    avg_duration = int(total_duration / total) if total > 0 else 0
+    dur_vals = df_f["مدة الإنجاز (أيام)"].dropna()
+    done_cnt = int((dur_vals > 0).sum())
+    if done_cnt > 0:
+        avg_duration = int(dur_vals.sum() / done_cnt)
 
 if "تاريخ الطلب ميلادي" in df.columns and not df["تاريخ الطلب ميلادي"].isna().all():
     last_req = df["تاريخ الطلب ميلادي"].max().strftime("%Y-%m-%d")
