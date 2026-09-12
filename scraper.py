@@ -93,7 +93,7 @@ def kill_chrome():
 def start_chrome():
     kill_chrome()
     subprocess.Popen([CHROME_PATH,f"--remote-debugging-port={PORT}","--remote-allow-origins=*",
-        "--no-first-run","--disable-popup-blocking","--start-minimized",
+        "--no-first-run","--disable-popup-blocking",
         f"--user-data-dir={PROFILE_DIR}",BLS_SSO_URL])
     log("انتظار Chrome...")
     for i in range(20):
@@ -165,11 +165,15 @@ def read_info(send):
 
 # ---------------- date / search ----------------
 def type_into(send, fid, value):
-    """كتابة حقيقية عبر CDP ثم تحقق من القيمة النهائية."""
+    """كتابة حقيقية عبر CDP: حرق الحقل بمفاتيح Backspace (يكسر نموذج ADF)
+    ثم Ctrl+A ثم كتابة القيمة — يضمن الاستبدال على حقل حي بدون إلصاق."""
     for attempt in range(3):
-        js(send, "(function(){var e=document.getElementById('" + fid + "');"
-                 "if(!e)return;e.focus();if(e.select)e.select();})()")
-        time.sleep(0.2)
+        js(send, "(function(){var e=document.getElementById('" + fid + "');if(e)e.focus();})()")
+        time.sleep(0.1)
+        for _ in range(16):
+            send("Input.dispatchKeyEvent", {"type":"keyDown","key":"Backspace","code":"Backspace","windowsVirtualKeyCode":8})
+            send("Input.dispatchKeyEvent", {"type":"keyUp","key":"Backspace","code":"Backspace","windowsVirtualKeyCode":8})
+        time.sleep(0.15)
         send("Input.dispatchKeyEvent", {"type":"keyDown","modifiers":2,"key":"a","code":"KeyA","windowsVirtualKeyCode":65})
         send("Input.dispatchKeyEvent", {"type":"keyUp","modifiers":2,"key":"a","code":"KeyA","windowsVirtualKeyCode":65})
         time.sleep(0.1)
@@ -177,7 +181,7 @@ def type_into(send, fid, value):
         time.sleep(0.2)
         js(send, "(function(){var e=document.getElementById('" + fid + "');"
                  "e.dispatchEvent(new Event('change',{bubbles:true}));e.blur();})()")
-        time.sleep(0.5)
+        time.sleep(0.4)
         got = js(send, "var e=document.getElementById('" + fid + "'); e ? e.value : ''")
         if got == value:
             return True
