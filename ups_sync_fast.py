@@ -31,6 +31,59 @@ def get_tabs():
     try: return json.loads(urllib.request.urlopen(f"http://127.0.0.1:{PORT}/json", timeout=5).read())
     except: return []
 
+ENV_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "..", "daily-report-automation", ".env")
+
+def read_creds():
+    d = {}
+    try:
+        for ln in open(ENV_FILE, encoding="utf-8", errors="ignore").read().splitlines():
+            if "=" in ln and not ln.strip().startswith("#"):
+                k, v = ln.split("=", 1)
+                d[k.strip()] = v.strip()
+    except Exception:
+        return None, None
+    u = d.get("CRM_USERNAME") or d.get("SSO_USERNAME")
+    pw = d.get("CRM_PASSWORD")
+    return u, pw
+
+def is_login(send):
+    return bool(js(send, "!!document.getElementById('userNameInput')")) or \
+           ("adfs" in (js(send, "document.location.href") or ""))
+
+def do_login(send, u, pw):
+    log("شاشة دخول UPS — إدخال بيانات ADFS تلقائياً...")
+    for fid, val in (("userNameInput", u), ("passwordInput", pw)):
+        expr = ("var e=document.getElementById('" + fid + "');if(!e)return false;"
+                "var s=Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set;"
+                "s.call(e," + json.dumps(val) + ");"
+                "e.dispatchEvent(new Event('input',{bubbles:true}));"
+                "e.dispatchEvent(new Event('change',{bubbles:true}));true")
+        js(send, expr)
+    js(send, "(function(){var k=document.getElementById('kmsiInput');if(k&&k.checked===false)k.click();" \
+             "var b=document.getElementById('submitButton');if(b){b.click();return true;}return false;})()")
+    return True
+
+def ensure_ready(send, timeout=70):
+    """التأكد من الوصول لقائمة الطلبات (تسجيل دخول تلقائي عند الحاجة)."""
+    send("Page.navigate", {"url": PAGE_URL})
+    t0 = time.time()
+    logged_once = False
+    while time.time() - t0 < timeout:
+        info = read_rows(send)
+        if info.get("total") and info.get("page") >= 1 and info.get("rows"):
+            return info
+        if is_login(send) and not logged_once:
+            u, pw = read_creds()
+            if u and pw:
+                do_login(send, u, pw)
+                logged_once = True
+            else:
+                log("لا توجد بيانات ADFS في " + ENV_FILE)
+                return None
+        time.sleep(3)
+    return read_rows(send)
+
 def connect_ws(url):
     ws = websocket.create_connection(url, timeout=30)
     _id = [0]
@@ -156,11 +209,12 @@ def main():
             log("FATAL: لا وصول للبوابة (تسجيل دخول؟)")
             return 1
 
-        # تحديد إجمالي الصفحات من تبويب موجود
+        # تحديد إجمالي الصفحات من تبويب موجود (مع دخول تلقائي عند الحاجة)
         ws, send = connect_ws(tabs[0]["webSocketDebuggerUrl"])
-        send("Page.navigate", {"url": PAGE_URL})
-        time.sleep(6)
-        info = read_rows(send)
+        info = ensure_ready(send)
+        if not info or not info.get("total"):
+            log("FATAL: لم نصل لقائمة الطلبات — يلزم دخول يدوي")
+            return 2
         total_pages = info.get("total", 0) or 1
         log(f"إجمالي الصفحات: {total_pages}")
         try: ws.close()
