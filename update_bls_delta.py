@@ -183,7 +183,7 @@ def main():
             failed = [x for o in out for x in o]
             if failed:
                 log(f"إصلاح تسلسلي... ({len(failed)})")
-                repair(failed, delta_rows, have, lock, done)
+                repair(failed, delta_rows, set(), lock, done)
 
         # دمج: تحديث الموجود + إضافة الجديد
         if delta_rows:
