@@ -99,13 +99,15 @@ def next_disabled(send):
 
 def collect_range(send, frm, to, all_rows, have, lock, start_got=0, persist=None):
     info = run_query(send, frm, to)
-    if not info or not info.get("rows"):
+    if not info:
         return ("q-fail", start_got)
-    pp = info.get("perPage", 0) or len(info.get("rows") or []) or 5
     total = info.get("total", 0)
-    log(f"  {frm}→{to}: {total} سجل | {info.get('perPage', 0)} بالصفحة")
     if not total:
         return ("ok-empty", start_got)
+    if not info.get("rows"):
+        return ("q-fail", start_got)
+    pp = info.get("perPage", 0) or len(info.get("rows") or []) or 5
+    log(f"  {frm}→{to}: {total} سجل | {info.get('perPage', 0)} بالصفحة")
     walked = start_got
     cur = 1
     stall = 0

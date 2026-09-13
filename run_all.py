@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# تنفيذ السحب التلقائي الكامل: BLS ثم UPS مع إعادة محاولة وتسجيل ورَفع git
+# خط الإنتاج المعتمد: مزامنة تزايدية BLS (update_bls_delta) ثم محول UPS الموازي (ups_sync_fast)
 import subprocess, sys, os, json, time
 from datetime import datetime
 sys.stdout.reconfigure(encoding='utf-8')
@@ -24,14 +24,16 @@ def append(entry):
     except Exception:
         pass
 
-def run_script(name, label, retries, gap=90):
+def run_script(name, label, retries, gap=60):
     entry = {"ts": datetime.now().isoformat(), "label": label, "prog": name}
     for attempt in range(1, retries + 2):
         t0 = time.time()
         try:
+            env = dict(os.environ)
             r = subprocess.run([PY, os.path.join(PROJ, name)], cwd=PROJ,
+                               env=env,
                                capture_output=True, text=True, encoding="utf-8",
-                               errors="replace", timeout=5400)
+                               errors="replace", timeout=2700)
             tail = (r.stdout + r.stderr)[-300:]
             if r.returncode != 0:
                 entry.update({"status": "FAIL", "attempt": attempt, "rc": r.returncode,
@@ -70,10 +72,11 @@ def git_push_if_changed():
     except Exception as e:
         return "git error: " + str(e)[:150]
 
-write_log("===== تشغيل خط الإنتاج التلقائي =====")
-bls = run_script("run_fast.py", "BLS", retries=2)
+write_log("===== تشغيل خط الإنتاج التلقائي (مزامنة تزايدية) =====")
 time.sleep(5)
-ups = run_script("ups_scraper.py", "UPS", retries=1)
+bls = run_script("update_bls_delta.py", "BLS-delta", retries=2)
+time.sleep(5)
+ups = run_script("ups_sync_fast.py", "UPS-fast", retries=1)
 push = git_push_if_changed()
 entry = {"ts": datetime.now().isoformat(), "label": "pipeline",
          "bls": "OK" if bls else "FAIL", "ups": "OK" if ups else "FAIL", "push": push}

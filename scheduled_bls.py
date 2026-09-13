@@ -19,8 +19,9 @@ PORT = 9222
 SSO = "https://app.alriyadh.gov.sa/BLS/loginApi"
 LOG = os.path.join(PROJ, "scheduled_run.log")
 LOCK = os.path.join(PROJ, "bls_sched.lock")
-ENGINE = os.path.join(PROJ, "run_fast.py")
-SCRA_LOG = os.path.join(PROJ, "scraper_log.txt")
+ENGINE = os.path.join(PROJ, "update_bls_delta.py")
+SCRA_LOG = os.path.join(PROJ, "delta_log.txt")
+UPS_LOG = os.path.join(PROJ, "ups_sync_log.txt")
 CONFIG = os.path.join(PROJ, "notify_config.json")
 
 def telegram_config():
@@ -135,10 +136,16 @@ def ensure_chrome():
     return start_chrome()
 
 def scraper_finished():
+    """نجاح مزامنة BLS التزايدية: حفظ data.xlsx مدموجاً أو رفع لا تغييرات."""
     try:
         lines = open(SCRA_LOG, encoding="utf-8", errors="replace").read().splitlines()
-        tail = "\n".join(lines[-6:])
-        return "انتهت القراءة بنجاح" in tail or "تم الرفع لـ GitHub" in tail
+        tail = "\n".join(lines[-8:])
+        if "تم الحفظ" in tail and "data.xlsx" in tail:
+            return True
+        up = open(os.path.join(PROJ, "update_log.txt"), encoding="utf-8",
+                  errors="replace").read().splitlines()
+        u = "\n".join(up[-4:])
+        return "تم الرفع لـ GitHub" in u or "لا توجد تغييرات" in u
     except Exception:
         return False
 
@@ -216,15 +223,15 @@ def notify(msg):
         pass
 
 def run_ups():
-    """تحديث UPS بالتوازي مع الجدولة (أفضل جهد، لا يمنع نجاح الجولة الأساسية)."""
-    log("بدء سحب UPS...")
+    """تحديث UPS بالموازي السريع (ups_sync_fast) — لا يمنع نجاح الجولة الأساسية."""
+    log("بدء سحب UPS (موازي)...")
     try:
-        r = subprocess.run([PY, os.path.join(PROJ, "ups_scraper.py")], cwd=PROJ,
+        r = subprocess.run([PY, os.path.join(PROJ, "ups_sync_fast.py")], cwd=PROJ,
                            capture_output=True, text=True, encoding="utf-8",
-                           errors="replace", timeout=3600, creationflags=CREATE_NO_WINDOW)
-        tail = open(os.path.join(PROJ, "ups_scraper_log.txt"), encoding="utf-8",
-                    errors="replace").read()
-        ok = "انتهت عملية UPS" in tail and r.returncode == 0
+                           errors="replace", timeout=1800, creationflags=CREATE_NO_WINDOW)
+        tail = open(UPS_LOG, encoding="utf-8", errors="replace").read().splitlines()
+        t = "\n".join(tail[-8:])
+        ok = ("تم الرفع لـ GitHub" in t or ("حفظ ups_requests.xlsx" in t and r.returncode == 0))
         log(f"نتيجة UPS: {'نجاح' if ok else 'فشل'}")
         return ok
     except Exception as e:
@@ -288,7 +295,7 @@ def main():
                     log("إعادة محاولة بعد 30 ثانية...")
                     time.sleep(30)
                     ensure_chrome()
-ups_ok = run_ups()
+            ups_ok = run_ups()
             notify(f"{'✅ BLS نجحت' if ok_any else '⚠️ BLS: ' + ('تحتاج رمزاً' if login_blocked() else 'فشلت')} | "
                    f"{'✅ UPS نجحت' if ups_ok else '⚠️ UPS لم تُحدَّث'} | جولة {time.strftime('%d/%m %H:%M')}")
         else:
