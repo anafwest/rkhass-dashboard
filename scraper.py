@@ -312,7 +312,7 @@ def jump_page(send, pg, perPage):
                  "var ev=new KeyboardEvent('keydown',{bubbles:true,cancelable:true,keyCode:13,key:'Enter'});"
                  "e.dispatchEvent(ev);})()")
         t0 = time.time()
-        while time.time() - t0 < 8:
+        while time.time() - t0 < 25:
             s = rng_txt(send)
             info = read_info(send)
             if info.get("page") == pg or start_num(s) == (pg - 1) * perPage + 1:
@@ -325,7 +325,7 @@ def click_next(send):
     js(send, "(function(){var a=document.getElementById('" + NX_ID + "');"
              "if(a){a.click();return 'ok';}return 'nf';})()")
 
-def wait_advance(send, from_start, timeout=8):
+def wait_advance(send, from_start, timeout=20):
     t0 = time.time()
     while time.time() - t0 < timeout:
         s = rng_txt(send)

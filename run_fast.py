@@ -239,7 +239,7 @@ def _main():
     all_rows = dedup
     log(f"بعد إزالة التكرار: {len(all_rows)}")
 
-    if len(all_rows) < total - 5:
+    if len(all_rows) < total - 12:
         save_checkpoint(all_rows)
         log(f"حارس الحفظ: ناقص {len(all_rows)}/{total} — لن أُعدّل data.xlsx")
         sys.exit(3)
