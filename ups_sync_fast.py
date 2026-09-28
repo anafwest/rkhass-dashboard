@@ -5,7 +5,7 @@
 نمر على الصفحات بالتوازي عبر عدة تبويبات (الافتراضي 5) فتنزل إلى ~دقيقتين.
 يقرأ آخر حالة لكل طلب، يدمج (إضافة/تحديث) ثم يحفظ ويرفع لـ GitHub.
 """
-import ssl, os, urllib3, time, json, sys, threading, subprocess, urllib.parse
+import ssl, os, urllib3, time, json, sys, threading, subprocess, urllib.parse, re
 urllib3.disable_warnings()
 ssl._create_default_https_context = ssl._create_unverified_context
 sys.stdout.reconfigure(encoding='utf-8')
@@ -26,6 +26,95 @@ def log(msg):
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(line + "\n")
     print(line, flush=True)
+
+CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "notify_config.json")
+
+def telegram_config():
+    try:
+        with open(CONFIG_FILE, encoding="utf-8") as f:
+            cfg = json.load(f)
+        tg = (cfg or {}).get("telegram", {}) or {}
+        token = (tg.get("bot_token") or "").strip()
+        chat = str(tg.get("chat_id") or "").strip()
+        return (token, chat) if token and chat else (None, None)
+    except Exception:
+        return None, None
+
+def telegram_send(msg):
+    token, chat = telegram_config()
+    if not token or not chat:
+        return False
+    try:
+        req = urllib.request.Request(
+            "https://api.telegram.org/bot%s/sendMessage" % token,
+            data=json.dumps({"chat_id": chat, "text": msg}).encode("utf-8"),
+            headers={"Content-Type": "application/json"})
+        resp = json.loads(urllib.request.urlopen(req, timeout=15).read())
+        return bool(resp.get("ok"))
+    except Exception as e:
+        log(f"Telegram خطأ: {e}")
+        return False
+
+OTP_PATTERNS = (
+    r"رمز\s*التحقق\s*[:：ون]?\s*(\d{4,8})",
+    r"رمز\s*[:：]?\s*(\d{4,8})",
+    r"كود\s*التحقق\s*[:：]?\s*(\d{4,8})",
+    r"كود\s*[:：]?\s*(\d{4,8})",
+    r"التحقق\s*[:：]?\s*(\d{4,8})",
+    r"(?:verification\s*code|code|otp)\s*[:：]?\s*(\d{4,8})",
+)
+
+def extract_otp(send):
+    """استخراج رمز التحقق الظاهر على الشاشة (إن وُجد)."""
+    try:
+        txt = js(send, "document.body ? document.body.innerText : ''") or ""
+    except Exception:
+        return None
+    for pat in OTP_PATTERNS:
+        m = re.search(pat, txt, re.IGNORECASE)
+        if m:
+            return m.group(1)
+    return None
+
+def win_notify(title, msg):
+    """إشعار فقاعة على شاشة Windows (بدون أي تطبيق خارجي)."""
+    try:
+        import subprocess
+        ps = ("Add-Type -AssemblyName System.Windows.Forms;"
+              "Add-Type -AssemblyName System.Drawing;"
+              "if ([System.Environment]::UserInteractive) {"
+              "$n = New-Object System.Windows.Forms.NotifyIcon;"
+              "$n.Icon = [System.Drawing.SystemIcons]::Information;"
+              "$n.Visible = $true;"
+              "$n.BalloonTipIcon = 'Info';"
+              f"$n.BalloonTipTitle = '{title.replace(chr(39), '').replace('`', '')}';"
+              f"$n.BalloonTipText = '{msg.replace(chr(39), '').replace('`', '')}';"
+              "$n.ShowBalloonTip(20000);"
+              "Start-Sleep -Seconds 22;"
+              "$n.Dispose() }")
+        kwargs = {}
+        try:
+            kwargs["creationflags"] = 0x08000000  # CREATE_NO_WINDOW
+        except Exception:
+            pass
+        p = subprocess.Popen(["powershell", "-NoProfile", "-STA", "-Command", ps],
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **kwargs)
+        return p.poll() is None or p.returncode == 0
+    except Exception:
+        return False
+
+def notify_otp(send):
+    """إرسال رمز التحقق الظاهر على الشاشة للتليجرام (إن ضُبط) + إشعار محلي + السجل."""
+    code = extract_otp(send)
+    if not code:
+        return False
+    msg = f"رمز تسجيل دخول UPS: {code}"
+    log(msg)
+    ok_tg = telegram_send(msg)
+    ok_win = win_notify("رمز دخول UPS", msg)
+    log("إرسال الرمز → Telegram: " + ("نعم" if ok_tg else "غير مضبوط") +
+        " | إشعار محلي: " + ("نعم" if ok_win else "فشل"))
+    return True
 
 def get_tabs():
     try: return json.loads(urllib.request.urlopen(f"http://127.0.0.1:{PORT}/json", timeout=5).read())
@@ -64,23 +153,28 @@ def do_login(send, u, pw):
              "var b=document.getElementById('submitButton');if(b){b.click();return true;}return false;})()")
     return True
 
-def ensure_ready(send, timeout=70):
-    """التأكد من الوصول لقائمة الطلبات (تسجيل دخول تلقائي عند الحاجة)."""
+def ensure_ready(send, timeout=90):
+    """التأكد من الوصول لقائمة الطلبات (تسجيل دخول تلقائي عند الحاجة).
+    عند غياب بيانات ADFS ينتظر الدخول اليدوي ويرسل رمز التحقق (إن ظهر) للتليجرام."""
     send("Page.navigate", {"url": PAGE_URL})
     t0 = time.time()
     logged_once = False
+    otp_sent = False
     while time.time() - t0 < timeout:
         info = read_rows(send)
         if info.get("total") and info.get("page") >= 1 and info.get("rows"):
             return info
-        if is_login(send) and not logged_once:
-            u, pw = read_creds()
-            if u and pw:
-                do_login(send, u, pw)
-                logged_once = True
-            else:
-                log("لا توجد بيانات ADFS في " + ENV_FILE)
-                return None
+        if is_login(send):
+            if not logged_once:
+                u, pw = read_creds()
+                if u and pw:
+                    do_login(send, u, pw)
+                    logged_once = True
+                else:
+                    log("لا توجد بيانات ADFS في " + ENV_FILE + " — بانتظار تسجيل الدخول اليدوي (سيُرسل الرمز عند ظهوره)")
+                    logged_once = True
+            if not otp_sent:
+                otp_sent = notify_otp(send)
         time.sleep(3)
     return read_rows(send)
 

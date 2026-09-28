@@ -67,6 +67,20 @@ def connect(url):
                 return r.get("result", {})
     return ws, send
 
+def ensure_ws(retries=12):
+    """ربط موثوق: يعيد قراءة معرّف التبويب عند تغيّره حتى إيجاد اتصال صالح."""
+    import websocket as _ws
+    for _ in range(retries):
+        u = find_page_tab()
+        if not u:
+            time.sleep(2)
+            continue
+        try:
+            return connect(u)
+        except Exception:
+            time.sleep(2)
+    return None, None
+
 def js(send, expr):
     r = send("Runtime.evaluate", {"expression": expr, "returnByValue": True})
     v = r.get("result", {})
