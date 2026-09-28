@@ -87,20 +87,22 @@ def work_block(send, start_page, end_page, pp, all_rows, have, lock):
     if cur > 1 and not jump_confirmed(send, cur, pp):
         log(f"  القفز لصفحة {cur} فشل بعد 4 محاولات")
         return ("jump-fail", cur)
-    streak = 0
     while cur <= end_page:
         info = S.read_info(send)
         rows = info.get("rows", [])
         if not rows:
-            streak += 1
-            if streak >= 3:
-                return ("stall", cur)
-            time.sleep(0.4)
-            continue
+            log(f"  صفحة {cur} فارغة — لا بيانات، توقف الكتلة")
+            return ("empty", cur)
         with lock:
             for r in rows:
                 if len(r) >= 10 and str(r[0]) not in have:
                     have.add(str(r[0])); all_rows.append(r)
+        if S.STOP_DATE:
+            for r in rows:
+                d = S.date_key(r[5] if len(r) > 5 else "")
+                if d < S.date_key(S.STOP_DATE):
+                    log(f"  بلوغ تاريخ التوقف {S.STOP_DATE} عند صف ({d}) — توقف الكتلة")
+                    return ("stop", cur)
         if cur >= end_page:
             break
         S.click_next(send)
@@ -108,22 +110,13 @@ def work_block(send, start_page, end_page, pp, all_rows, have, lock):
         info = S.read_info(send)
         n = S.start_num(S.rng_txt(send))
         if n > cur*pp:
-            cur += 1; streak = 0
+            cur += 1
             continue
         info = S.wait_advance(send, cur*pp, timeout=5)
         if info:
-            cur += 1; streak = 0
+            cur += 1
             continue
-        streak += 1
-        log(f"  تقدم صفحة {cur+1} لم يُؤكد (streak {streak})")
-        if streak >= 2:
-            info = refresh_search(send)
-            if info.get("rows") and jump_confirmed(send, cur+1, pp, 2):
-                cur += 1; streak = 0
-                continue
-        if streak >= 4:
-            return ("stall", cur)
-        time.sleep(0.5)
+        return ("stall", cur)
     return ("ok", cur)
 
 def save_checkpoint(all_rows, tag="data_partial.xlsx"):
@@ -221,7 +214,7 @@ def _main():
     for i in range(workers):
         rs, re = ranges[i]
         st, at = out[i] if out[i] else ("unknown", rs)
-        if st != "ok":
+        if st != "ok" and st not in ("empty", "stop"):
             frm = at if isinstance(at, int) else rs
             broken.append((f"repair-{i}", frm, re))
     if broken:

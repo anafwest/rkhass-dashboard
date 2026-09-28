@@ -27,6 +27,7 @@ COLS = ["طلب الخدمة","السنة","نوع الخدمة","وصف الم�
         "رقم الهوية","تاريخ المراجعة","تاريخ المراجعة ميلادي","رقم الطلب"]
 FROM_DATE = "1447/04/13"
 TO_DATE = "1448/12/29"
+STOP_DATE = os.environ.get("BLS_STOP_DATE", "") or None
 TABS = int(os.environ.get("BLS_TABS", "4"))
 MAX_WORK_PAGES = int(os.environ["BLS_MAX_WORK_PAGES"]) if os.environ.get("BLS_MAX_WORK_PAGES") else None
 TEST_ONLY = bool(os.environ.get("BLS_TEST_ONLY"))
@@ -43,6 +44,16 @@ def log(msg):
     line = f"[{ts}] {msg}"
     with open("scraper_log.txt","a",encoding="utf-8") as f: f.write(line+"\n")
     print(line, flush=True)
+
+def date_key(date_str):
+    """تحويل تاريخ هجري (yyyy/m/d) إلى مفتاح قابل للمقارنة النصية."""
+    try:
+        p = str(date_str).strip().split("/")
+        if len(p) == 3:
+            return "".join(x.zfill(2) for x in p)
+        return str(date_str).strip()
+    except Exception:
+        return str(date_str)
 
 def get_tabs():
     try: return json.loads(urllib.request.urlopen(f"http://127.0.0.1:{PORT}/json",timeout=5).read())
@@ -352,8 +363,16 @@ def collect_main(send, start_page, end_page, perPage):
     while cur <= end_page:
         info = read_info(send)
         rows = info.get("rows", [])
-        if rows:
-            rows_all.extend(rows)
+        if not rows:
+            log(f"  صفحة {cur} فارغة — لا بيانات، توقف الشريحة")
+            return rows_all
+        rows_all.extend(rows)
+        if STOP_DATE:
+            for r in rows:
+                d = date_key(r[5] if len(r) > 5 else "")
+                if d < date_key(STOP_DATE):
+                    log(f"  بلوغ تاريخ التوقف {STOP_DATE} عند صف ({d}) — توقف الشريحة")
+                    return rows_all
         if cur >= end_page:
             break
         click_next(send)
