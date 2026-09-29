@@ -17,7 +17,8 @@ LOCK_FILE = os.path.join(PROJ, "ups_sync.lock")
 
 def log(msg):
     t = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"[{t}] [loop] {msg}", flush=True)
+    if sys.stdout:
+        print(f"[{t}] [loop] {msg}", flush=True)
     try:
         with open(os.path.join(PROJ, "ups_sync_log.txt"), "a", encoding="utf-8") as f:
             f.write(f"[{t}] [loop] {msg}\n")

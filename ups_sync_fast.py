@@ -8,7 +8,8 @@
 import ssl, os, urllib3, time, json, sys, threading, subprocess, urllib.parse, re
 urllib3.disable_warnings()
 ssl._create_default_https_context = ssl._create_unverified_context
-sys.stdout.reconfigure(encoding='utf-8')
+if sys.stdout:
+    sys.stdout.reconfigure(encoding='utf-8')
 import websocket, urllib.request, pandas as pd
 from datetime import datetime
 
@@ -25,7 +26,8 @@ def log(msg):
     line = f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {msg}"
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(line + "\n")
-    print(line, flush=True)
+    if sys.stdout:
+        print(line, flush=True)
 
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "notify_config.json")
 
@@ -343,10 +345,11 @@ def main():
         df.to_excel("ups_requests.xlsx", index=False, engine="openpyxl")
         log(f"حفظ ups_requests.xlsx ({len(df)} صف) في {int((time.time()-t_all)//60)}د {int((time.time()-t_all)%60)}ث")
 
-        subprocess.run(["git", "add", "-A"], check=True, capture_output=True)
+        NO_WIN = 0x08000000  # CREATE_NO_WINDOW
+        subprocess.run(["git", "add", "-A"], check=True, capture_output=True, creationflags=NO_WIN)
         r = subprocess.run(["git", "commit", "-m", f"update ups data {datetime.now().strftime('%Y-%m-%d %H:%M')}"],
-                           capture_output=True, text=True)
-        p = subprocess.run(["git", "push", "origin", "main"], capture_output=True, text=True, timeout=120)
+                           capture_output=True, text=True, creationflags=NO_WIN)
+        p = subprocess.run(["git", "push", "origin", "main"], capture_output=True, text=True, timeout=120, creationflags=NO_WIN)
         log("تم الرفع لـ GitHub" if p.returncode == 0 else f"خطأ الرفع: {p.stderr[:150]}")
     finally:
         try:
