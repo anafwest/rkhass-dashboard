@@ -119,7 +119,7 @@ def kill_profile_chrome():
 def start_chrome():
     subprocess.Popen([CHROME, f"--remote-debugging-port={PORT}",
                       "--remote-allow-origins=*", "--no-first-run",
-                      "--disable-popup-blocking", "--start-minimized",
+                      "--disable-popup-blocking", "--headless=new", "--disable-gpu",
                       f"--user-data-dir={PROFILE}", SSO])
     for _ in range(30):
         time.sleep(2)

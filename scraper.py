@@ -93,7 +93,7 @@ def kill_chrome():
              "Get-CimInstance Win32_Process -Filter \\\"Name='chrome.exe'\\\" | "
              "Where-Object { $_.CommandLine -like '*ScraperProfile*' } | "
              "ForEach-Object { $_.ProcessId }"],
-            capture_output=True, text=True, timeout=30)
+            capture_output=True, text=True, timeout=30, creationflags=0x08000000)
         ids = [int(x) for x in r.stdout.split() if x.strip().isdigit()]
         for pid in ids:
             subprocess.run(["taskkill","/F","/PID",str(pid)], capture_output=True)
@@ -105,6 +105,7 @@ def start_chrome():
     kill_chrome()
     subprocess.Popen([CHROME_PATH,f"--remote-debugging-port={PORT}","--remote-allow-origins=*",
         "--no-first-run","--disable-popup-blocking",
+        "--headless=new","--disable-gpu",
         f"--user-data-dir={PROFILE_DIR}",BLS_SSO_URL])
     log("انتظار Chrome...")
     for i in range(20):

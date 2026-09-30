@@ -296,7 +296,8 @@ def main():
         tabs = [t for t in get_tabs() if t.get("type") == "page" and "ups-backoffice" in t.get("url", "")]
         if not tabs:
             subprocess.Popen([CHROME_PATH, f"--remote-debugging-port={PORT}", "--remote-allow-origins=*",
-                              "--no-first-run", "--start-minimized", f"--user-data-dir={PROFILE_DIR}", PAGE_URL])
+                              "--no-first-run", "--headless=new", "--disable-gpu",
+                              f"--user-data-dir={PROFILE_DIR}", PAGE_URL])
             for _ in range(25):
                 time.sleep(2)
                 tabs = [t for t in get_tabs() if t.get("type") == "page" and "ups-backoffice" in t.get("url", "")]
