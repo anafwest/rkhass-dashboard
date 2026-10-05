@@ -155,13 +155,15 @@ def do_login(send, u, pw):
              "var b=document.getElementById('submitButton');if(b){b.click();return true;}return false;})()")
     return True
 
-def ensure_ready(send, timeout=90):
+def ensure_ready(send, timeout=300):
     """التأكد من الوصول لقائمة الطلبات (تسجيل دخول تلقائي عند الحاجة).
-    عند غياب بيانات ADFS ينتظر الدخول اليدوي ويرسل رمز التحقق (إن ظهر) للتليجرام."""
+    عند غياب بيانات ADFS ينتظر الدخول اليدوي ويرسل رمز التحقق (إن ظهر) للتليجرام/الإشعار."""
     send("Page.navigate", {"url": PAGE_URL})
     t0 = time.time()
     logged_once = False
     otp_sent = False
+    otp_tries = 0
+    alerted = False
     while time.time() - t0 < timeout:
         info = read_rows(send)
         if info.get("total") and info.get("page") >= 1 and info.get("rows"):
@@ -173,9 +175,12 @@ def ensure_ready(send, timeout=90):
                     do_login(send, u, pw)
                     logged_once = True
                 else:
-                    log("لا توجد بيانات ADFS في " + ENV_FILE + " — بانتظار تسجيل الدخول اليدوي (سيُرسل الرمز عند ظهوره)")
+                    log("لا توجد بيانات ADFS — بانتظار تسجيل الدخول اليدوي (سيظهر إشعار بالرمز عند ظهوره)")
+                    alerted = win_notify("تسجيل دخول مطلوب — UPS",
+                                         "تبويب تسجيل الدخول مفتوح في Chrome — أدخل بياناتك لبدء السحب")
                     logged_once = True
-            if not otp_sent:
+            if not otp_sent and otp_tries < 40:
+                otp_tries += 1
                 otp_sent = notify_otp(send)
         time.sleep(3)
     return read_rows(send)
@@ -279,6 +284,91 @@ def load_base():
         base[k] = r.to_dict()
     return base, set(base.keys())
 
+def cdp_alive():
+    try:
+        return bool(get_tabs())
+    except Exception:
+        return False
+
+def open_tab_via_cdp(url):
+    """افتح تبويباً في نسخة Chrome الموجودة عبر CDP (بدون تشغيل متصفح أو نافذة)."""
+    try:
+        ver = json.loads(urllib.request.urlopen(f"http://127.0.0.1:{PORT}/json/version", timeout=8).read())
+        bws = ver.get("webSocketDebuggerUrl")
+        if bws:
+            ws = websocket.create_connection(bws, timeout=20)
+            try:
+                ws.send(json.dumps({"id": 1, "method": "Target.createTarget", "params": {"url": url}}))
+                deadline = time.time() + 20
+                while time.time() < deadline:
+                    r = json.loads(ws.recv())
+                    if r.get("id") == 1:
+                        return bool(r.get("result", {}).get("targetId"))
+            finally:
+                try: ws.close()
+                except Exception: pass
+    except Exception as e:
+        log(f"Target.createTarget فشل: {e}")
+    try:
+        req = urllib.request.Request(f"http://127.0.0.1:{PORT}/json/new?{urllib.parse.quote(url, safe=':/?=&%')}",
+                                     method="PUT")
+        urllib.request.urlopen(req, timeout=15).read()
+        return True
+    except Exception as e:
+        log(f"فشل فتح التبويب عبر CDP: {e}")
+        return False
+
+def find_ups_tab():
+    for t in get_tabs():
+        if t.get("type") == "page" and "ups-backoffice" in t.get("url", ""):
+            return t
+    return None
+
+def find_login_tab():
+    """أي تبويب صفحة على نطاق alriyadh.gov.sa (بانتظار الدخول أو صفحة BLS)."""
+    for t in get_tabs():
+        u = t.get("url", "")
+        if t.get("type") == "page" and "alriyadh.gov.sa" in u and "ups-backoffice" not in u:
+            return t
+    return None
+
+def get_ups_tab():
+    """تبويب UPS موجود (يُعاد استخدامه)، أو تبويب عمل جديد.
+    لا نلمس تبويب تسجيل الدخول اليدوي إطلاقاً. يعيد (tab, created)."""
+    t = find_ups_tab()
+    if t:
+        return t, False
+    created = False
+    if cdp_alive():
+        created = open_tab_via_cdp(PAGE_URL)
+        log("فتح تبويب عمل جديد لـ UPS (دون المساس بتبويب الدخول)")
+    else:
+        subprocess.Popen([CHROME_PATH, f"--remote-debugging-port={PORT}", "--remote-allow-origins=*",
+                          "--no-first-run", "--headless=new", "--disable-gpu",
+                          f"--user-data-dir={PROFILE_DIR}", PAGE_URL],
+                         creationflags=0x08000000)
+        created = True
+    for _ in range(25):
+        time.sleep(2)
+        t = find_ups_tab() or find_login_tab()
+        if t:
+            return t, created
+    return None, created
+
+def close_tab(tab):
+    try:
+        if tab and tab.get("id"):
+            ver = json.loads(urllib.request.urlopen(f"http://127.0.0.1:{PORT}/json/version", timeout=8).read())
+            ws = websocket.create_connection(ver["webSocketDebuggerUrl"], timeout=10)
+            try:
+                ws.send(json.dumps({"id": 1, "method": "Target.closeTarget",
+                                    "params": {"targetId": tab["id"]}}))
+                ws.recv()
+            finally:
+                ws.close()
+    except Exception:
+        pass
+
 def main():
     lockf = "ups_sync.lock"
     if os.path.exists(lockf):
@@ -293,24 +383,20 @@ def main():
         base, base_keys = load_base()
         log(f"قاعدة: {len(base)} سجل")
 
-        tabs = [t for t in get_tabs() if t.get("type") == "page" and "ups-backoffice" in t.get("url", "")]
-        if not tabs:
-            subprocess.Popen([CHROME_PATH, f"--remote-debugging-port={PORT}", "--remote-allow-origins=*",
-                              "--no-first-run", "--headless=new", "--disable-gpu",
-                              f"--user-data-dir={PROFILE_DIR}", PAGE_URL])
-            for _ in range(25):
-                time.sleep(2)
-                tabs = [t for t in get_tabs() if t.get("type") == "page" and "ups-backoffice" in t.get("url", "")]
-                if tabs: break
-        if not tabs:
-            log("FATAL: لا وصول للبوابة (تسجيل دخول؟)")
+        tab, created = get_ups_tab()
+        if not tab:
+            log("FATAL: لا الوصول لبوابة UPS — جلسة الدخول منتهية؟")
             return 1
 
-        # تحديد إجمالي الصفحات من تبويب موجود (مع دخول تلقائي عند الحاجة)
-        ws, send = connect_ws(tabs[0]["webSocketDebuggerUrl"])
+        # تحديد إجمالي الصفحات من التبويب (مع انتظار الدخول اليدوي عند الحاجة)
+        ws, send = connect_ws(tab["webSocketDebuggerUrl"])
         info = ensure_ready(send)
         if not info or not info.get("total"):
             log("FATAL: لم نصل لقائمة الطلبات — يلزم دخول يدوي")
+            try: ws.close()
+            except Exception: pass
+            if created:
+                close_tab(tab)
             return 2
         total_pages = info.get("total", 0) or 1
         log(f"إجمالي الصفحات: {total_pages}")
