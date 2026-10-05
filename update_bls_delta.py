@@ -137,9 +137,17 @@ def repair(failed, delta_rows, have, lock, done):
 def main():
     lockf = "update_bls.lock"
     if os.path.exists(lockf):
-        log("مثال آخر يعمل — خروج")
-        return 0
-    open(lockf, "w").close()
+        age = time.time() - os.path.getmtime(lockf)
+        if age < 1800:
+            log("قفل حديث — مثال آخر يعمل، خروج")
+            return 0
+        log(f"قفل عالق ({int(age//60)} دقيقة) — إزالة ومتابعة")
+        try:
+            os.remove(lockf)
+        except Exception:
+            pass
+    with open(lockf, "w") as f:
+        f.write(str(os.getpid()))
     t_all = time.time()
     try:
         log("=" * 62)
