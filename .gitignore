@@ -73,6 +73,14 @@ report.html
 found_page.html
 login_api.html
 login_api2.html
+
+# Locks & one-off probes (runtime only)
+*.lock
+update_bls.lock
+ups_sync.lock
+_probe_*.py
+_peek_*.py
+_ups_probe*.py
 form_app.png
 found_page.png
 page_screenshot.png
