@@ -205,7 +205,7 @@ def extract_otp():
     return ""
 
 def notify(msg):
-    """تنبيه فوري: فقاعة Windows + Telegram + WhatsApp (بقدر التهيئة)."""
+    """تنبيه فوري: فقاعة Windows + Telegram (بقدر التهيئة). واتساب معطّل نهائياً."""
     ps = ("Add-Type -AssemblyName System.Windows.Forms;"
           "Add-Type -AssemblyName System.Drawing;"
           "$n = New-Object System.Windows.Forms.NotifyIcon;"
@@ -216,11 +216,6 @@ def notify(msg):
           "Start-Sleep 8; $n.Dispose()")
     subprocess.Popen(["powershell", "-NoProfile", "-Command", ps], creationflags=CREATE_NO_WINDOW)
     telegram_send(msg)
-    try:
-        subprocess.run([PY, os.path.join(PROJ, "whatsapp_notify.py"), msg],
-                       capture_output=True, timeout=150, creationflags=CREATE_NO_WINDOW)
-    except Exception:
-        pass
 
 def run_ups():
     """تحديث UPS بالموازي السريع (ups_sync_fast) — لا يمنع نجاح الجولة الأساسية."""

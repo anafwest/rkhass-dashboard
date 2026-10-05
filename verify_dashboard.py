@@ -135,10 +135,17 @@ def report_bls(path):
     out += hist(df, "الجهة", "BLS", top=10)
     out += hist(df, "السنة", "BLS", top=10)
     # توزيع ميلادي حسب السنة للتأكد
-    yc = df["تاريخ الطلب ميلادي"].astype(str).str[:4]
+    def gy(s):
+        m = re.search(r"(\d{4})", str(s))
+        return m.group(1) if m else "غير محدد"
+    yc = df["تاريخ الطلب ميلادي"].apply(gy)
     out.append("توزيع السنة الميلادية (من تاريخ الطلب ميلادي):")
     for k, v in yc.value_counts().sort_index().items():
         out.append(f"    {k}: {v:,}")
+    # تحقق من مفتاح طلب الخدمة
+    r, _ = dup_report(df, "طلب الخدمة", "BLS")
+    out.append("[BLS] تحقق من مفتاح طلب الخدمة:")
+    out += r
     return out
 
 if __name__ == "__main__":
