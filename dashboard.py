@@ -166,15 +166,31 @@ if st.session_state.page == "ups":
         "مرفوض": "❌ مرفوض", "قيد العمل - المهندس": "⚙️ قيد العمل - المهندس",
         "بانتظار السداد": "💳 بانتظار السداد", "ملغي": "⛔ ملغي",
         "قيد العمل - مشرف رخص البناء": "⚙️ قيد العمل - مشرف رخص البناء",
+        "جاري تجهيز الطلب": "⚙️ قيد العمل",
+        "توزيع الطلب": "⚙️ قيد العمل",
     }
+
+    # حالات تُدمج في مجموعة "قيد العمل" حتى لا تتسرب من بطاقات KPI
+    INPROG_EXTRA = ["جاري تجهيز الطلب", "توزيع الطلب"]
+
+    def inprog_mask(frame):
+        return frame["حالة الطلب"].str.contains("قيد العمل", na=False) | \
+               frame["حالة الطلب"].isin(INPROG_EXTRA)
 
     total_ups = len(ups_df)
     done_ups = (ups_df["حالة الطلب"] == "مكتمل").sum()
-    inprog_ups = ups_df["حالة الطلب"].str.contains("قيد العمل", na=False).sum()
+    inprog_ups = int(inprog_mask(ups_df).sum())
     pending_ups = (ups_df["حالة الطلب"] == "بانتظار السداد").sum()
     amend_ups = (ups_df["حالة الطلب"] == "استكمال التعديلات").sum()
     rej_ups = (ups_df["حالة الطلب"] == "مرفوض").sum()
     cancel_ups = (ups_df["حالة الطلب"] == "ملغي").sum()
+
+    # تحقق: بطاقات KPI يجب أن تغطي كل الطلبات
+    _kpi_sum = int(done_ups + inprog_ups + pending_ups + amend_ups + rej_ups + cancel_ups)
+    if _kpi_sum != total_ups:
+        _missing = ups_df[~ups_df["حالة الطلب"].isin(["مكتمل", "بانتظار السداد", "استكمال التعديلات", "مرفوض", "ملغي"])]
+        _missing = _missing[~inprog_mask(_missing)]["حالة الطلب"].value_counts().to_dict()
+        st.warning(f"⚠️ مجموع البطاقات {_kpi_sum:,} ≠ الإجمالي {total_ups:,}. حالات غير مصنّفة: {_missing}")
 
     st.markdown(f"""<div class="kpi-grid">
         <div class="kpi k-total"><div class="kpi-val">{total_ups:,}</div><div class="kpi-lbl">📋 إجمالي الطلبات</div><div class="kpi-sub">في النظام حالياً</div><div class="kpi-bar"></div></div>
@@ -254,7 +270,7 @@ if st.session_state.page == "ups":
 
     if st.session_state.ups_stage != "الكل":
         if st.session_state.ups_stage == "قيد العمل":
-            ups_filtered = ups_filtered[ups_filtered["حالة الطلب"].str.contains("قيد العمل", na=False)]
+            ups_filtered = ups_filtered[inprog_mask(ups_filtered)]
         else:
             ups_filtered = ups_filtered[ups_filtered["حالة الطلب"] == st.session_state.ups_stage]
 
@@ -268,7 +284,8 @@ if st.session_state.page == "ups":
         st_pie.columns = ["الحالة", "العدد"]
         cmap = {"مكتمل": "#15803d", "استكمال التعديلات": "#2563eb", "مرفوض": "#dc2626",
                 "قيد العمل - المهندس": "#d97706", "بانتظار السداد": "#0891b2",
-                "ملغي": "#94a3b8", "قيد العمل - مشرف رخص البناء": "#d97706"}
+                "ملغي": "#94a3b8", "قيد العمل - مشرف رخص البناء": "#d97706",
+                "جاري تجهيز الطلب": "#d97706", "توزيع الطلب": "#ca8a04"}
         fig = px.pie(st_pie, names="الحالة", values="العدد", hole=0.55, color="الحالة", color_discrete_map=cmap)
         fig.update_layout(height=220, margin=dict(l=5, r=5, t=10, b=5), legend=dict(font=dict(size=9), orientation="h", y=-0.1))
         fig.update_traces(textposition='inside', textinfo='percent', textfont_size=10, marker=dict(line=dict(color='white', width=2)))
