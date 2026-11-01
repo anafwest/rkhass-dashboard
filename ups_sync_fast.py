@@ -21,6 +21,9 @@ COLS = ["رقم الطلب","رقم الرخصة","تاريخ الطلب","اس�
 WORKERS = int(os.environ.get("UPS_WORKERS", "5"))
 STAGGER = 3.0
 LOG_FILE = "ups_sync_log.txt"
+STATE_FILE = "ups_sync_state.json"
+DATA_FILES = ["ups_requests.xlsx", "ups_prev.xlsx", STATE_FILE]
+MIN_COVERAGE = float(os.environ.get("UPS_MIN_COVERAGE", "0.90"))
 
 def log(msg):
     line = f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {msg}"
@@ -28,6 +31,34 @@ def log(msg):
         f.write(line + "\n")
     if sys.stdout:
         print(line, flush=True)
+
+def write_state(rows, new, updated, pages, coverage):
+    """يُكتب فقط عند نجاح السحب — مصدر الحقيقة لوقت آخر تحديث في اللوحة."""
+    try:
+        state = {
+            "last_success": datetime.now().isoformat(timespec="seconds"),
+            "rows": int(rows),
+            "new": int(new),
+            "updated": int(updated),
+            "pages": int(pages),
+            "coverage": round(float(coverage), 3),
+            "source": "ups_sync_fast.py",
+        }
+        with open(STATE_FILE, "w", encoding="utf-8") as f:
+            json.dump(state, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        log(f"تعذر كتابة {STATE_FILE}: {e}")
+
+def diagnose(send):
+    """تسجيل سبب الفشل الحقيقي: شاشة دخول / تحويل / صفحة فارغة."""
+    try:
+        url = js(send, "document.location.href") or ""
+        title = js(send, "document.title") or ""
+        body = js(send, "document.body ? document.body.innerText.slice(0, 200) : ''") or ""
+        body = " ".join(str(body).split())[:160]
+        log(f"تشخيص الصفحة: login={is_login(send)} | url={url} | title={title} | نص={body}")
+    except Exception as e:
+        log(f"تعذر تشخيص الصفحة: {e}")
 
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "notify_config.json")
 
@@ -245,6 +276,7 @@ def nav_page(send, page, limit=18):
     return res, False
 
 def worker(wid, pages, out):
+    global done_pages
     time.sleep(STAGGER * wid)
     tab = new_tab()
     if not tab:
@@ -262,12 +294,13 @@ def worker(wid, pages, out):
                 rows = res["rows"]
                 got += len(rows)
                 with out_lock:
+                    done_pages.append(p)
                     for r in rows:
                         if len(r) >= 6 and str(r[0]):
                             current[str(r[0])] = r
                 break
             time.sleep(2)
-        if not ok and attempt:
+        if not ok:
             log(f"عامل {wid+1}: صفحة {p} فارغة مرتين")
     log(f"عامل {wid+1}: أنهى {len(pages)} صفحة ({got} صف)")
     out[wid] = got
@@ -392,6 +425,7 @@ def main():
         ws, send = connect_ws(tab["webSocketDebuggerUrl"])
         info = ensure_ready(send)
         if not info or not info.get("total"):
+            diagnose(send)
             log("FATAL: لم نصل لقائمة الطلبات — يلزم دخول يدوي")
             try: ws.close()
             except Exception: pass
@@ -408,8 +442,9 @@ def main():
         for i, p in enumerate(pages):
             chunks[i % WORKERS].append(p)
 
-        global current, out_lock
+        global current, out_lock, done_pages
         current = {}
+        done_pages = []
         out_lock = threading.Lock()
         out = [0] * WORKERS
         t0 = time.time()
@@ -422,22 +457,54 @@ def main():
         upd_k = [k for k in current if k in base_keys and base[k].get("حالة الطلب") != current[k][5]]
         log(f"جديدة: {len(new_k)} | تحديث حالة: {len(upd_k)}")
 
-        cols = COLS
-        rows = [current[k] for k in sorted(current)]
-        df = pd.DataFrame(rows, columns=cols)
-        try:
-            os.replace("ups_requests.xlsx", "ups_prev.xlsx")
-        except Exception:
-            pass
-        df.to_excel("ups_requests.xlsx", index=False, engine="openpyxl")
-        log(f"حفظ ups_requests.xlsx ({len(df)} صف) في {int((time.time()-t_all)//60)}د {int((time.time()-t_all)%60)}ث")
+        # تغطية الصفحات: لا نحفظ/نرفع سحبًا ناقصًا
+        covered = len(set(done_pages))
+        coverage = covered / total_pages if total_pages else 0
+        log(f"تغطية الصفحات: {covered}/{total_pages} ({coverage:.0%})")
+        if coverage < MIN_COVERAGE:
+            log(f"FATAL: تغطية ناقصة ({coverage:.0%} < {MIN_COVERAGE:.0%}) — لن يتم الحفظ أو الرفع")
+            if created:
+                close_tab(tab)
+            return 3
+
+        if new_k or upd_k:
+            cols = COLS
+            rows = [current[k] for k in sorted(current)]
+            df = pd.DataFrame(rows, columns=cols)
+            try:
+                os.replace("ups_requests.xlsx", "ups_prev.xlsx")
+            except Exception:
+                pass
+            df.to_excel("ups_requests.xlsx", index=False, engine="openpyxl")
+            log(f"حفظ ups_requests.xlsx ({len(df)} صف) في {int((time.time()-t_all)//60)}د {int((time.time()-t_all)%60)}ث")
+        else:
+            log("لا توجد تغييرات في البيانات — تحديث وقت آخر سحب فقط")
+
+        total_rows = len(current) if current else len(base)
+        write_state(total_rows, len(new_k), len(upd_k), covered, coverage)
 
         NO_WIN = 0x08000000  # CREATE_NO_WINDOW
-        subprocess.run(["git", "add", "-A"], check=True, capture_output=True, creationflags=NO_WIN)
-        r = subprocess.run(["git", "commit", "-m", f"update ups data {datetime.now().strftime('%Y-%m-%d %H:%M')}"],
-                           capture_output=True, text=True, creationflags=NO_WIN)
-        p = subprocess.run(["git", "push", "origin", "main"], capture_output=True, text=True, timeout=120, creationflags=NO_WIN)
-        log("تم الرفع لـ GitHub" if p.returncode == 0 else f"خطأ الرفع: {p.stderr[:150]}")
+        try:
+            subprocess.run(["git", "add", *DATA_FILES], check=True, capture_output=True, creationflags=NO_WIN)
+            staged = subprocess.run(["git", "diff", "--cached", "--quiet"], capture_output=True, creationflags=NO_WIN)
+            if staged.returncode == 0:
+                log("لا توجد تغييرات في Git — لا حاجة للرفع")
+                return 0
+            subprocess.run(["git", "commit", "-m", f"update ups data {datetime.now().strftime('%Y-%m-%d %H:%M')}"],
+                           check=True, capture_output=True, text=True, creationflags=NO_WIN)
+            p = subprocess.run(["git", "push", "origin", "main"], capture_output=True, text=True, timeout=120, creationflags=NO_WIN)
+            if p.returncode == 0:
+                log("تم الرفع لـ GitHub")
+            else:
+                log(f"خطأ الرفع: {(p.stderr or '').strip()[:200]}")
+                return 4
+        except FileNotFoundError:
+            log("FATAL: git غير مثبت أو غير موجود في PATH — تم الحفظ محليًا فقط")
+            return 5
+        except subprocess.CalledProcessError as e:
+            err = e.stderr.decode("utf-8", "replace") if isinstance(e.stderr, bytes) else str(e.stderr)
+            log(f"FATAL: خطأ Git: {err.strip()[:200]}")
+            return 6
     finally:
         try:
             os.remove(lockf)

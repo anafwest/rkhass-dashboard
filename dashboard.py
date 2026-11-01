@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 import os
+import json
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 os.chdir(PROJECT_DIR)
@@ -119,18 +120,39 @@ st.markdown(f'<div class="footer" style="margin-top:0;padding:4px 0;">الصفح
 
 # ======================== صفحة طلبات النظام (UPS) ===================
 if st.session_state.page == "ups":
+    ups_state = {}
     try:
-        ups_pull_ts = datetime.fromtimestamp(os.path.getmtime("ups_requests.xlsx")).strftime("%d-%m-%Y %H:%M")
+        with open("ups_sync_state.json", encoding="utf-8") as _f:
+            ups_state = json.load(_f)
     except Exception:
-        ups_pull_ts = "غير معروف"
+        ups_state = {}
+    ups_ok_ts = None
+    if ups_state.get("last_success"):
+        try:
+            ups_ok_ts = datetime.fromisoformat(ups_state["last_success"])
+        except Exception:
+            ups_ok_ts = None
+    if ups_ok_ts:
+        ups_pull_ts = ups_ok_ts.strftime("%d-%m-%Y %H:%M")
+        age_h = (datetime.now() - ups_ok_ts).total_seconds() / 3600
+        if age_h <= 24:
+            ups_badge = f'<span class="badge" style="background:rgba(34,197,94,0.2);color:#22c55e;border:1px solid rgba(34,197,94,0.3)">✅ محدث — آخر سحب ناجح: {ups_pull_ts}</span>'
+        else:
+            ups_badge = f'<span class="badge" style="background:rgba(220,38,38,0.15);color:#dc2626;border:1px solid rgba(220,38,38,0.3)">⚠️ متأخر {int(age_h // 24)} يوم — آخر سحب ناجح: {ups_pull_ts}</span>'
+    else:
+        try:
+            ups_pull_ts = datetime.fromtimestamp(os.path.getmtime("ups_requests.xlsx")).strftime("%d-%m-%Y %H:%M") + " (غير مؤكد)"
+        except Exception:
+            ups_pull_ts = "غير معروف"
+        ups_badge = f'<span class="badge" style="background:rgba(217,119,6,0.15);color:#d97706;border:1px solid rgba(217,119,6,0.3)">⚠️ وقت السحب غير مؤكد: {ups_pull_ts}</span>'
     st.markdown(f"""
 <div class="header-bar">
     <div>
         <h1>📦 مؤشر أداء رخص البناء</h1>
-        <p class="sub">الطلبات القائمة حالياً في نظام التصاريح الموحد (UPS) | آخر سحب للبيانات: {ups_pull_ts}</p>
+        <p class="sub">الطلبات القائمة حالياً في نظام التصاريح الموحد (UPS) | آخر سحب ناجح: {ups_pull_ts}</p>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
-        <span class="badge" style="background:rgba(34,197,94,0.2);color:#22c55e;border:1px solid rgba(34,197,94,0.3)">✅ محدث — آخر سحب للبيانات: {ups_pull_ts}</span>
+        {ups_badge}
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -193,7 +215,7 @@ if st.session_state.page == "ups":
         st.warning(f"⚠️ مجموع البطاقات {_kpi_sum:,} ≠ الإجمالي {total_ups:,}. حالات غير مصنّفة: {_missing}")
 
     st.markdown(f"""<div class="kpi-grid">
-        <div class="kpi k-total"><div class="kpi-val">{total_ups:,}</div><div class="kpi-lbl">📋 إجمالي الطلبات</div><div class="kpi-sub">في النظام حالياً</div><div class="kpi-bar"></div></div>
+        <div class="kpi k-total"><div class="kpi-val">{total_ups:,}</div><div class="kpi-lbl">📋 إجمالي الطلبات</div><div class="kpi-sub">نشط: {total_ups - done_ups:,} • أرشيف مكتمل: {done_ups:,}</div><div class="kpi-bar"></div></div>
         <div class="kpi k-done"><div class="kpi-val">{done_ups:,}</div><div class="kpi-lbl">✅ مكتمل</div><div class="kpi-sub">{round(done_ups/total_ups*100,1) if total_ups else 0}%</div><div class="kpi-bar"></div></div>
         <div class="kpi k-prog"><div class="kpi-val">{inprog_ups:,}</div><div class="kpi-lbl">⚙️ قيد العمل</div><div class="kpi-sub">{round(inprog_ups/total_ups*100,1) if total_ups else 0}%</div><div class="kpi-bar"></div></div>
         <div class="kpi k-ret"><div class="kpi-val">{amend_ups:,}</div><div class="kpi-lbl">🔄 استكمال التعديلات</div><div class="kpi-sub">{round(amend_ups/total_ups*100,1) if total_ups else 0}%</div><div class="kpi-bar"></div></div>

@@ -226,8 +226,11 @@ def run_ups():
                            errors="replace", timeout=1800, creationflags=CREATE_NO_WINDOW)
         tail = open(UPS_LOG, encoding="utf-8", errors="replace").read().splitlines()
         t = "\n".join(tail[-8:])
-        ok = ("تم الرفع لـ GitHub" in t or ("حفظ ups_requests.xlsx" in t and r.returncode == 0))
+        ok = ("تم الرفع لـ GitHub" in t or "لا توجد تغييرات" in t
+              or ("حفظ ups_requests.xlsx" in t and r.returncode == 0))
         log(f"نتيجة UPS: {'نجاح' if ok else 'فشل'}")
+        if not ok:
+            log("UPS آخر السجل: " + " | ".join(tail[-3:]))
         return ok
     except Exception as e:
         log(f"UPS خطأ: {e}")
