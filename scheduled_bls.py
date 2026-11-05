@@ -11,10 +11,29 @@ try:
 except Exception:
     pass
 CREATE_NO_WINDOW = 0x08000000
-PROJ = r"C:\Users\anaf\OneDrive - Riyadh Municipality\المستندات\Default Project\rkhass-dashboard"
-PY   = r"C:\Users\anaf\AppData\Local\Programs\Python\Python312\python.exe"
-CHROME = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
-PROFILE = r"C:\Users\anaf\ScraperProfile"
+PROJ = os.path.dirname(os.path.abspath(__file__))
+PY   = sys.executable or r"C:\Users\HPProBook440G9\AppData\Local\Programs\Python\Python313\python.exe"
+
+
+def _find_chrome():
+    for c in (
+        os.environ.get("BLS_CHROME_PATH", ""),
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+    ):
+        if c and os.path.exists(c):
+            return c
+    import shutil as _sh
+    return _sh.which("chrome") or _sh.which("google-chrome") or \
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+
+
+CHROME = _find_chrome()
+_default_profile = os.path.join(PROJ, "chrome_profile")
+if not os.path.isdir(_default_profile):
+    _default_profile = os.path.join(PROJ, "ScraperProfile")
+PROFILE = os.environ.get("BLS_PROFILE_DIR") or _default_profile
+PROFILE_NAME = os.path.basename(PROFILE.rstrip("\\/"))
 PORT = 9222
 SSO = "https://app.alriyadh.gov.sa/BLS/loginApi"
 LOG = os.path.join(PROJ, "scheduled_run.log")
@@ -105,7 +124,7 @@ def kill_profile_chrome():
         r = subprocess.run(
             ["powershell","-NoProfile","-Command",
              "Get-CimInstance Win32_Process -Filter \\\"Name='chrome.exe'\\\" | "
-             "Where-Object { $_.CommandLine -like '*ScraperProfile*' } | "
+             "Where-Object { $_.CommandLine -like '*" + PROFILE_NAME + "*' } | "
              "ForEach-Object { $_.ProcessId }"],
             capture_output=True, text=True, timeout=30, creationflags=CREATE_NO_WINDOW)
         ids = [int(x) for x in r.stdout.split() if x.strip().isdigit()]
@@ -117,10 +136,14 @@ def kill_profile_chrome():
         pass
 
 def start_chrome():
-    subprocess.Popen([CHROME, f"--remote-debugging-port={PORT}",
-                      "--remote-allow-origins=*", "--no-first-run",
-                      "--disable-popup-blocking", "--headless=new", "--disable-gpu",
-                      f"--user-data-dir={PROFILE}", SSO])
+    args = [CHROME, f"--remote-debugging-port={PORT}",
+            "--remote-allow-origins=*", "--no-first-run",
+            "--disable-popup-blocking", "--disable-gpu",
+            '--host-resolver-rules=MAP ups-backoffice.alriyadh.gov.sa 10.111.111.75',
+            f"--user-data-dir={PROFILE}", SSO]
+    if os.environ.get("BLS_HEADLESS", "0") in {"1", "true", "yes"}:
+        args.insert(5, "--headless=new")
+    subprocess.Popen(args)
     for _ in range(30):
         time.sleep(2)
         if cdp_alive():
@@ -218,19 +241,28 @@ def notify(msg):
     telegram_send(msg)
 
 def run_ups():
-    """تحديث UPS بالموازي السريع (ups_sync_fast) — لا يمنع نجاح الجولة الأساسية."""
-    log("بدء سحب UPS (موازي)...")
+    """تحديث UPS بالموازي السريع (ups_sync_fast) — لا يمنع نجاح الجولة الأساسية.
+
+    نجاح UPS يُحدَّد من رمز الخروج فقط:
+      0  = سحب موثّق وحفظ محلي (ونشر إن أمكن)
+      75 = قفل تشغيل (سحب آخر يعمل) — لا يُعدّ فشلاً
+    """
+    log("بدء سحب UPS (موثّق)...")
     try:
         r = subprocess.run([PY, os.path.join(PROJ, "ups_sync_fast.py")], cwd=PROJ,
                            capture_output=True, text=True, encoding="utf-8",
-                           errors="replace", timeout=1800, creationflags=CREATE_NO_WINDOW)
-        tail = open(UPS_LOG, encoding="utf-8", errors="replace").read().splitlines()
-        t = "\n".join(tail[-8:])
-        ok = ("تم الرفع لـ GitHub" in t or "لا توجد تغييرات" in t
-              or ("حفظ ups_requests.xlsx" in t and r.returncode == 0))
-        log(f"نتيجة UPS: {'نجاح' if ok else 'فشل'}")
+                           errors="replace", timeout=3600, creationflags=CREATE_NO_WINDOW)
+        ok = r.returncode in (0, 75)
+        state = "نجاح" if r.returncode == 0 else ("مقفل (سحب آخر يعمل)" if r.returncode == 75 else "فشل")
+        log(f"نتيجة UPS: {state} (رمز {r.returncode})")
         if not ok:
-            log("UPS آخر السجل: " + " | ".join(tail[-3:]))
+            try:
+                tail = open(UPS_LOG, encoding="utf-8", errors="replace").read().splitlines()
+                log("UPS آخر السجل: " + " | ".join(tail[-3:]))
+            except Exception:
+                pass
+            if r.returncode == 2:
+                notify("UPS: الجلسة غير مسجّلة — سجّل الدخول يدويًا في نافذة Chrome ثم أعد التشغيل")
         return ok
     except Exception as e:
         log(f"UPS خطأ: {e}")

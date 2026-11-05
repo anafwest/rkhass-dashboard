@@ -53,6 +53,7 @@ test_error.txt
 
 # Test / Debug files
 test_*.py
+!tests/test_ups_snapshot.py
 debug_*.py
 explore*.py
 check_*.py
@@ -81,6 +82,7 @@ ups_sync.lock
 _probe_*.py
 _peek_*.py
 _ups_probe*.py
+_shot.py
 form_app.png
 found_page.png
 page_screenshot.png

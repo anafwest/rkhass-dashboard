@@ -5,7 +5,7 @@ from datetime import datetime, date
 from collections import defaultdict
 sys.stdout.reconfigure(encoding='utf-8')
 
-PROJ = r"C:\Users\anaf\OneDrive - Riyadh Municipality\المستندات\Default Project\rkhass-dashboard"
+PROJ = os.path.dirname(os.path.abspath(__file__))
 HIST = os.path.join(PROJ, "monitor_history.jsonl")
 REPORT = os.path.join(PROJ, "daily_report.md")
 START = date(2026, 8, 27)

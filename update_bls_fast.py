@@ -20,6 +20,28 @@ WORKERS = int(os.environ.get("BLS_WORKERS", "6"))
 STAGGER = 2.0
 DONE_FILE = "done_ranges.txt"
 
+
+def _find_git():
+    import shutil as _sh
+    for c in (
+        os.environ.get("GIT_EXE", ""),
+        _sh.which("git") or "",
+        r"C:\Users\HPProBook440G9\AppData\Local\Programs\Git\bin\git.exe",
+        r"C:\Program Files\Git\bin\git.exe",
+        r"C:\Program Files (x86)\Git\bin\git.exe",
+    ):
+        if c and os.path.exists(c):
+            return c
+    return "git"
+
+
+def _tracked_files(git):
+    try:
+        r = subprocess.run([git, "ls-files"], capture_output=True, text=True, timeout=30)
+        return set(x.strip() for x in r.stdout.splitlines() if x.strip())
+    except Exception:
+        return set()
+
 def log(msg):
     line = f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {msg}"
     with open("update_log.txt", "a", encoding="utf-8") as f:
@@ -253,11 +275,29 @@ def repair(failed, all_rows, have, lock, done):
             log(f"إصلاح ناجح {frm}→{to} — المجموع {len(all_rows)}")
 
 def commit_push():
-    subprocess.run(["git", "add", "-A"], check=True, capture_output=True)
-    r = subprocess.run(["git", "commit", "-m", f"update data {datetime.now().strftime('%Y-%m-%d %H:%M')}"],
+    """نشر مقيّد لملفات البيانات المتتبعة فقط (لا git add -A)."""
+    git = _find_git()
+    allowed = [f for f in ("data.xlsx", "data_prev.xlsx") if f in _tracked_files(git)]
+    if not allowed:
+        log("لا توجد ملفات بيانات متتبعة للنشر — حفظ محلي فقط")
+        return
+    subprocess.run([git, "add", "--", *allowed], check=True, capture_output=True)
+    staged = subprocess.run([git, "diff", "--cached", "--name-only"],
+                            capture_output=True, text=True).stdout.splitlines()
+    staged = [x.strip() for x in staged if x.strip()]
+    unexpected = [f for f in staged if f not in allowed]
+    if unexpected:
+        subprocess.run([git, "reset", "--", *unexpected], capture_output=True)
+        log("ملفات غير مسموح بها في المرحلي — أُلغي النشر")
+        return
+    if not staged:
+        log("لا توجد تغييرات")
+        return
+    r = subprocess.run([git, "commit", "-m",
+                        f"update data {datetime.now().strftime('%Y-%m-%d %H:%M')}"],
                        capture_output=True, text=True)
     if r.returncode == 0:
-        p = subprocess.run(["git", "push", "origin", "main"], capture_output=True, text=True, timeout=120)
+        p = subprocess.run([git, "push", "origin", "main"], capture_output=True, text=True, timeout=120)
         log("تم الرفع لـ GitHub" if p.returncode == 0 else f"خطأ الرفع: {p.stderr[:200]}")
     else:
         log("لا توجد تغييرات")

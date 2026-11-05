@@ -16,8 +16,46 @@ from datetime import datetime
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 os.chdir(PROJECT_DIR)
-CHROME_PATH = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
-PROFILE_DIR = r"C:\Users\anaf\ScraperProfile"
+def _find_chrome():
+    for c in (
+        os.environ.get("BLS_CHROME_PATH", ""),
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+    ):
+        if c and os.path.exists(c):
+            return c
+    import shutil as _sh
+    return _sh.which("chrome") or _sh.which("google-chrome") or \
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+
+CHROME_PATH = _find_chrome()
+_default_profile = os.path.join(PROJECT_DIR, "chrome_profile")
+if not os.path.isdir(_default_profile):
+    _default_profile = os.path.join(PROJECT_DIR, "ScraperProfile")
+PROFILE_DIR = os.environ.get("BLS_PROFILE_DIR") or _default_profile
+PROFILE_NAME = os.path.basename(PROFILE_DIR.rstrip("\\/"))
+
+
+def _find_git():
+    import shutil as _sh
+    for c in (
+        os.environ.get("GIT_EXE", ""),
+        _sh.which("git") or "",
+        r"C:\Users\HPProBook440G9\AppData\Local\Programs\Git\bin\git.exe",
+        r"C:\Program Files\Git\bin\git.exe",
+        r"C:\Program Files (x86)\Git\bin\git.exe",
+    ):
+        if c and os.path.exists(c):
+            return c
+    return "git"
+
+
+def _tracked_files(git):
+    try:
+        r = subprocess.run([git, "ls-files"], capture_output=True, text=True, timeout=30)
+        return set(x.strip() for x in r.stdout.splitlines() if x.strip())
+    except Exception:
+        return set()
 PORT = 9222
 BLS_URL = "https://app.alriyadh.gov.sa/BLS/faces/home"
 SSO_URL = "https://app.alriyadh.gov.sa/SSO/loginApi"
@@ -91,7 +129,7 @@ def kill_chrome():
         r = subprocess.run(
             ["powershell","-NoProfile","-Command",
              "Get-CimInstance Win32_Process -Filter \\\"Name='chrome.exe'\\\" | "
-             "Where-Object { $_.CommandLine -like '*ScraperProfile*' } | "
+             "Where-Object { $_.CommandLine -like '*" + PROFILE_NAME + "*' } | "
              "ForEach-Object { $_.ProcessId }"],
             capture_output=True, text=True, timeout=30, creationflags=0x08000000)
         ids = [int(x) for x in r.stdout.split() if x.strip().isdigit()]
@@ -103,10 +141,13 @@ def kill_chrome():
 
 def start_chrome():
     kill_chrome()
-    subprocess.Popen([CHROME_PATH,f"--remote-debugging-port={PORT}","--remote-allow-origins=*",
-        "--no-first-run","--disable-popup-blocking",
-        "--headless=new","--disable-gpu",
-        f"--user-data-dir={PROFILE_DIR}",BLS_SSO_URL])
+    args = [CHROME_PATH, f"--remote-debugging-port={PORT}", "--remote-allow-origins=*",
+            "--no-first-run", "--disable-popup-blocking", "--disable-gpu",
+            '--host-resolver-rules=MAP ups-backoffice.alriyadh.gov.sa 10.111.111.75',
+            f"--user-data-dir={PROFILE_DIR}", BLS_SSO_URL]
+    if os.environ.get("BLS_HEADLESS", "0") in {"1", "true", "yes"}:
+        args.insert(5, "--headless=new")
+    subprocess.Popen(args)
     log("انتظار Chrome...")
     for i in range(20):
         time.sleep(2)
@@ -584,11 +625,28 @@ def main():
     log(f"حفظ data.xlsx ({os.path.getsize('data.xlsx')//1024} KB)")
 
     os.chdir(PROJECT_DIR)
-    subprocess.run(["git","add","-A"], check=True, capture_output=True)
-    r = subprocess.run(["git","commit","-m",f"update data {datetime.now().strftime('%Y-%m-%d %H:%M')}"],
+    # نشر مقيّد: ملفات البيانات المتتبعة فقط (لا git add -A ولا أسرار/جلسات)
+    git = _find_git()
+    allowed = [f for f in ("data.xlsx", "data_prev.xlsx") if f in _tracked_files(git)]
+    if not allowed:
+        log("لا توجد ملفات بيانات متتبعة للنشر — حفظ محلي فقط")
+        ws.close()
+        log("=== نهاية السحب ===")
+        return 0
+    subprocess.run([git, "add", "--", *allowed], check=True, capture_output=True)
+    staged = subprocess.run([git, "diff", "--cached", "--name-only"], capture_output=True,
+                            text=True).stdout.splitlines()
+    staged = [x.strip() for x in staged if x.strip()]
+    if any(f not in allowed for f in staged):
+        subprocess.run([git, "reset", "--", *[f for f in staged if f not in allowed]],
+                       capture_output=True)
+        log("ملفات غير مسموح بها في المرحلي — أُلغي النشر")
+        ws.close()
+        return 0
+    r = subprocess.run([git,"commit","-m",f"update data {datetime.now().strftime('%Y-%m-%d %H:%M')}"],
                         capture_output=True, text=True)
     if r.returncode == 0:
-        p = subprocess.run(["git","push","origin","main"], capture_output=True, text=True, timeout=120)
+        p = subprocess.run([git,"push","origin","main"], capture_output=True, text=True, timeout=120)
         if p.returncode == 0: log("تم الرفع لـ GitHub")
         else: log(f"خطأ الرفع: {p.stderr[:200]}")
     else:

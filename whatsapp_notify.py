@@ -8,8 +8,23 @@ sys.stdout.reconfigure(encoding='utf-8')
 
 PROJ = os.path.dirname(os.path.abspath(__file__))
 WA_PORT = 9223
-WA_PROFILE = r"C:\Users\anaf\WhatsAppProfile"
-CHROME = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+WA_PROFILE = os.environ.get("WA_PROFILE_DIR") or os.path.join(PROJ, "WhatsAppProfile")
+
+
+def _find_chrome():
+    for c in (
+        os.environ.get("WA_CHROME_PATH", ""),
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+    ):
+        if c and os.path.exists(c):
+            return c
+    import shutil as _sh
+    return _sh.which("chrome") or _sh.which("google-chrome") or \
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+
+
+CHROME = _find_chrome()
 PHONE = "966509739793"
 
 def log(msg):

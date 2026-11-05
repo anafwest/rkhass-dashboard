@@ -120,50 +120,36 @@ st.markdown(f'<div class="footer" style="margin-top:0;padding:4px 0;">الصفح
 
 # ======================== صفحة طلبات النظام (UPS) ===================
 if st.session_state.page == "ups":
+    import ups_core as ups_core_mod
+
     ups_state = {}
     try:
         with open("ups_sync_state.json", encoding="utf-8") as _f:
             ups_state = json.load(_f)
     except Exception:
         ups_state = {}
-    ups_ok_ts = None
-    if ups_state.get("last_success"):
-        try:
-            ups_ok_ts = datetime.fromisoformat(ups_state["last_success"])
-        except Exception:
-            ups_ok_ts = None
-    if ups_ok_ts:
-        ups_pull_ts = ups_ok_ts.strftime("%d-%m-%Y %H:%M")
-        age_h = (datetime.now() - ups_ok_ts).total_seconds() / 3600
-        if age_h <= 24:
-            ups_badge = f'<span class="badge" style="background:rgba(34,197,94,0.2);color:#22c55e;border:1px solid rgba(34,197,94,0.3)">✅ محدث — آخر سحب ناجح: {ups_pull_ts}</span>'
-        else:
-            ups_badge = f'<span class="badge" style="background:rgba(220,38,38,0.15);color:#dc2626;border:1px solid rgba(220,38,38,0.3)">⚠️ متأخر {int(age_h // 24)} يوم — آخر سحب ناجح: {ups_pull_ts}</span>'
-    else:
-        try:
-            ups_pull_ts = datetime.fromtimestamp(os.path.getmtime("ups_requests.xlsx")).strftime("%d-%m-%Y %H:%M") + " (غير مؤكد)"
-        except Exception:
-            ups_pull_ts = "غير معروف"
-        ups_badge = f'<span class="badge" style="background:rgba(217,119,6,0.15);color:#d97706;border:1px solid rgba(217,119,6,0.3)">⚠️ وقت السحب غير مؤكد: {ups_pull_ts}</span>'
-    st.markdown(f"""
-<div class="header-bar">
-    <div>
-        <h1>📦 مؤشر أداء رخص البناء</h1>
-        <p class="sub">الطلبات القائمة حالياً في نظام التصاريح الموحد (UPS) | آخر سحب ناجح: {ups_pull_ts}</p>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px">
-        {ups_badge}
-    </div>
-</div>
-""", unsafe_allow_html=True)
+
+    ups_attempt = {}
+    try:
+        with open("ups_sync_last_attempt.json", encoding="utf-8") as _f:
+            ups_attempt = json.load(_f)
+    except Exception:
+        ups_attempt = {}
+
+    ups_publish = {}
+    try:
+        with open("ups_sync_publish.json", encoding="utf-8") as _f:
+            ups_publish = json.load(_f)
+    except Exception:
+        ups_publish = {}
 
     ups_file = "ups_requests.xlsx"
     if not os.path.exists(ups_file):
-        st.warning("⚠️ ملف ups_requests.xlsx غير موجود — شغّل ups_scraper.py أولاً")
+        st.warning("⚠️ ملف ups_requests.xlsx غير موجود — شغّل ups_sync_fast.py أولاً")
         st.stop()
 
     try:
-        ups_df = pd.read_excel(ups_file)
+        ups_df = pd.read_excel(ups_file, dtype=str, keep_default_na=False)
     except Exception as e:
         st.error(f"خطأ في قراءة ملف UPS: {e}")
         st.stop()
@@ -171,6 +157,101 @@ if st.session_state.page == "ups":
     ups_df = ups_df.copy().fillna("")
     for col in ups_df.columns:
         ups_df[col] = ups_df[col].astype(str).str.strip().replace({"nan": "", "None": ""})
+
+    ups_verify = ups_core_mod.verify_snapshot_state(ups_state, ups_file)
+    ups_rows_now = len(ups_df)
+
+    ups_finished = ups_state.get("sync_finished_at") or ups_state.get("last_success")
+    ups_pull_ts = "غير موثّق"
+    ups_age_h = None
+    if ups_finished:
+        try:
+            from zoneinfo import ZoneInfo
+            _ts = datetime.fromisoformat(str(ups_finished))
+            if _ts.tzinfo is None:
+                _ts = _ts.replace(tzinfo=ZoneInfo("Asia/Riyadh"))
+            ups_pull_ts = _ts.strftime("%d-%m-%Y %H:%M")
+            ups_age_h = (datetime.now(ZoneInfo("Asia/Riyadh")) - _ts).total_seconds() / 3600
+        except Exception:
+            ups_pull_ts = str(ups_finished)
+
+    if ups_verify["ok"]:
+        ups_badge = (
+            '<span class="badge" style="background:rgba(34,197,94,0.2);color:#22c55e;'
+            'border:1px solid rgba(34,197,94,0.3)">✅ لقطة موثقة — '
+            f'{ups_pull_ts}</span>'
+        )
+    else:
+        ups_badge = (
+            '<span class="badge" style="background:rgba(220,38,38,0.15);color:#dc2626;'
+            'border:1px solid rgba(220,38,38,0.3)">⚠️ لقطة غير موثقة</span>'
+        )
+
+    ups_scope = ups_state.get("scope", {}) or {}
+    ups_pages = f"{ups_state.get('pages_completed', '؟')}/{ups_state.get('pages_expected', '؟')}"
+    ups_cov = ups_state.get("coverage")
+    ups_cov_txt = f"{float(ups_cov) * 100:.1f}%" if isinstance(ups_cov, (int, float)) else "غير معروف"
+
+    st.markdown(f"""
+<div class="header-bar">
+    <div>
+        <h1>📦 مؤشر أداء رخص البناء</h1>
+        <p class="sub">الطلبات القائمة حالياً في نظام التصاريح الموحد (UPS) | آخر سحب مكتمل موثّق: {ups_pull_ts} | الصفحات: {ups_pages} | التغطية: {ups_cov_txt}</p>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+        {ups_badge}
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+    if not ups_verify["ok"]:
+        st.error("⚠️ لا يمكن اعتبار هذه اللقطة سحباً مكتملاً موثقاً. الأسباب:")
+        for _issue in ups_verify["issues"]:
+            st.markdown(f"- {_issue}")
+        if ups_attempt:
+            st.info(
+                f"آخر محاولة سحب: {ups_attempt.get('started_at', '؟')} — "
+                f"الحالة: {ups_attempt.get('status', '؟')} — "
+                f"الخطأ: {ups_attempt.get('error', 'لا يوجد')}"
+            )
+    elif ups_age_h is not None and ups_age_h > 24:
+        st.warning(
+            f"⚠️ آخر سحب موثّق عمره {int(ups_age_h // 24)} يوم — "
+            f"البيانات المعروضة قد تكون قديمة."
+        )
+
+    if ups_verify["ok"]:
+        _added = ups_state.get("added")
+        _deleted = ups_state.get("deleted")
+        _modified = ups_state.get("modified")
+        _dup = ups_state.get("duplicates", 0)
+        _cross = ups_state.get("cross_page_duplicate_count", 0)
+        _fields = ups_state.get("modified_by_field") or {}
+        st.markdown(
+            f'<div class="footer" style="text-align:right;padding:6px 2px;">'
+            f'📄 الصفوف: {int(ups_state.get("rows", 0)):,} | '
+            f'الصفحات: {ups_pages} | التغطية: {ups_cov_txt} | '
+            f'مضاف: {_added if _added is not None else "؟"} | '
+            f'محذوف: {_deleted if _deleted is not None else "؟"} | '
+            f'معدل: {_modified if _modified is not None else "؟"} | '
+            f'تكرارات: {_dup} | تكرار بين صفحات: {_cross}'
+            + (f' | الحقول المعدلة: {_fields}' if _fields else '')
+            + f'<br>النطاق: {ups_scope.get("page_url", "غير معروف")}'
+            + f' | المصدر: {ups_state.get("source", "غير معروف")}'
+            + f'</div>',
+            unsafe_allow_html=True,
+        )
+        _pub_status = (ups_publish or ups_state.get("publish") or {}).get("status")
+        if _pub_status == "ok":
+            st.caption(
+                f"☁️ نُشر إلى GitHub: {ups_publish.get('commit', '')[:12]} "
+                f"على {ups_publish.get('branch', '')} — {ups_publish.get('pushed_at', '')}"
+            )
+        elif _pub_status in {"failed", "blocked"}:
+            st.warning(
+                f"الحفظ المحلي ناجح، لكن النشر إلى GitHub لم يكتمل: "
+                f"{ups_publish.get('error', 'سبب غير معروف')}"
+            )
 
     import re
 
@@ -339,7 +420,7 @@ if st.session_state.page == "ups":
     st.dataframe(ups_show, width="stretch", height=400)
     st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown(f'<div class="footer">نظام التصاريح الموحد — قسم رخص البناء © {datetime.now().year} | آخر سحب عبر ups_scraper.py</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="footer">نظام التصاريح الموحد — قسم رخص البناء © {datetime.now().year} | آخر سحب عبر ups_sync_fast.py (جلسة متصفح موثقة)</div>', unsafe_allow_html=True)
     st.stop()
 
 # ======================== دوال معالجة البيانات ======================
