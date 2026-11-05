@@ -787,3 +787,30 @@ def state_summary(state: Mapping[str, Any] | None) -> dict[str, Any]:
         "data_origin", "bootstrap", "verified", "local_save", "publish",
     ]
     return {k: state.get(k) for k in keys if k in state}
+
+
+ARABIC_INDIC_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
+CLOSED_STATUSES = ("مكتمل", "مرفوض", "ملغي")
+
+
+def extract_hijri_year(value: Any) -> str:
+    """استخراج السنة الهجرية من تاريخ نصي بأرقام عربية-هندية أو لاتينية.
+
+    ملف UPS يكتب التواريخ مثل «١٧ - ربيع الآخر - ١٤٤٨ هـ»، لذا يجب تطبيع
+    الأرقام قبل البحث وإلا ظهرت كل الصفوف «غير محدد».
+    """
+    s = clean_cell(value).translate(ARABIC_INDIC_DIGITS)
+    m = re.search(r"(\d{3,4})\s*هـ", s)
+    if not m:
+        m = re.search(r"\b(1[34]\d{2})\b", s)
+    if not m:
+        return "غير محدد"
+    return f"هـ {int(m.group(1))}"
+
+
+def active_request_mask(df: pd.DataFrame, status_col: str = "حالة الطلب") -> pd.Series:
+    """الطلب النشط هو غير المكتمل وغير المرفوض وغير الملغي.
+
+    الأرشيف المغلق (مكتمل/مرفوض/ملغي) لا يُحتسب ضمن الطلبات النشطة.
+    """
+    return ~df[status_col].isin(CLOSED_STATUSES)

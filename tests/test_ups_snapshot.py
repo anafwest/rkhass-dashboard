@@ -291,5 +291,30 @@ class LockTests(unittest.TestCase):
         self.assertFalse(os.path.exists(self.path))
 
 
+class DashboardMetricTests(unittest.TestCase):
+    def test_hijri_year_arabic_indic_digits(self):
+        self.assertEqual(core.extract_hijri_year("١٧ - ربيع الآخر - ١٤٤٨ هـ"), "هـ 1448")
+        self.assertEqual(core.extract_hijri_year("١ - جمادى الآخرة - ١٤٣١ هـ"), "هـ 1431")
+
+    def test_hijri_year_latin_digits_and_fallback(self):
+        self.assertEqual(core.extract_hijri_year("17 - ربيع الآخر - 1448 هـ"), "هـ 1448")
+        self.assertEqual(core.extract_hijri_year("1448/04/17"), "هـ 1448")
+
+    def test_hijri_year_missing(self):
+        self.assertEqual(core.extract_hijri_year(""), "غير محدد")
+        self.assertEqual(core.extract_hijri_year("تاريخ غير معروف"), "غير محدد")
+
+    def test_active_excludes_closed_statuses(self):
+        df = make_df([
+            row("1", **{"حالة الطلب": "مكتمل"}),
+            row("2", **{"حالة الطلب": "مرفوض"}),
+            row("3", **{"حالة الطلب": "ملغي"}),
+            row("4", **{"حالة الطلب": "قيد العمل - المهندس"}),
+            row("5", **{"حالة الطلب": "بانتظار السداد"}),
+            row("6", **{"حالة الطلب": "استكمال التعديلات"}),
+        ])
+        self.assertEqual(int(core.active_request_mask(df).sum()), 3)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -6,6 +6,7 @@ from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 import os
 import json
+import re
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 os.chdir(PROJECT_DIR)
@@ -41,7 +42,7 @@ st.markdown("""
     .header-bar .sub { font-size: 11px; opacity: 0.85; margin: 2px 0 0 0; font-weight: 300; }
     .header-bar .badge { background: rgba(255,255,255,0.15); padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 600; }
 
-    .kpi-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 12px; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin-bottom: 12px; }
     .kpi { background: white; border-radius: 10px; padding: 12px 10px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid #e8ecf0; position: relative; overflow: hidden; transition: transform 0.2s, box-shadow 0.2s; }
     .kpi:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
     .kpi-val { font-size: 26px; font-weight: 800; direction: ltr; display: inline-block; }
@@ -49,6 +50,7 @@ st.markdown("""
     .kpi-sub { font-size: 9px; color: #94a3b8; margin-top: 1px; }
     .kpi-bar { height: 3px; border-radius: 0 0 10px 10px; position: absolute; bottom: 0; left: 0; right: 0; }
     .k-total .kpi-val { color: #1e293b; } .k-total .kpi-bar { background: #64748b; }
+    .k-active .kpi-val { color: #7c3aed; } .k-active .kpi-bar { background: linear-gradient(90deg, #c4b5fd, #7c3aed); }
     .k-done .kpi-val { color: #15803d; } .k-done .kpi-bar { background: linear-gradient(90deg, #22c55e, #15803d); }
     .k-ret .kpi-val { color: #2563eb; } .k-ret .kpi-bar { background: linear-gradient(90deg, #60a5fa, #2563eb); }
     .k-prog .kpi-val { color: #d97706; } .k-prog .kpi-bar { background: linear-gradient(90deg, #fbbf24, #d97706); }
@@ -158,13 +160,27 @@ if st.session_state.page == "ups":
     for col in ups_df.columns:
         ups_df[col] = ups_df[col].astype(str).str.strip().replace({"nan": "", "None": ""})
 
+    # السنة الهجرية: تواريخ الملف بأرقام عربية-هندية (١٤٤٨) — تُطبّع قبل الاستخراج
+    ups_df["السنة الهجرية"] = ups_df["تاريخ الطلب"].apply(ups_core_mod.extract_hijri_year)
+    _valid_years = sorted(
+        int(re.sub(r"\D", "", v))
+        for v in ups_df["السنة الهجرية"].unique()
+        if v != "غير محدد" and re.sub(r"\D", "", v)
+    )
+    ups_year_range = f"{_valid_years[0]}–{_valid_years[-1]} هـ" if _valid_years else "غير محدد"
+
+    # فصل الأرشيف المغلق عن الطلبات النشطة (نفس تعريف ups_core)
+    _closed_pre = int(ups_df["حالة الطلب"].isin(ups_core_mod.CLOSED_STATUSES).sum())
+    _active_pre = len(ups_df) - _closed_pre
+
     ups_verify = ups_core_mod.verify_snapshot_state(ups_state, ups_file)
     ups_rows_now = len(ups_df)
 
     ups_finished = ups_state.get("sync_finished_at") or ups_state.get("last_success")
     ups_pull_ts = "غير موثّق"
     ups_age_h = None
-    if ups_finished:
+    # لا نعرض تاريخ bootstrap كأنه سحب مكتمل موثّق
+    if ups_verify["ok"] and ups_finished:
         try:
             from zoneinfo import ZoneInfo
             _ts = datetime.fromisoformat(str(ups_finished))
@@ -191,12 +207,17 @@ if st.session_state.page == "ups":
     ups_pages = f"{ups_state.get('pages_completed', '؟')}/{ups_state.get('pages_expected', '؟')}"
     ups_cov = ups_state.get("coverage")
     ups_cov_txt = f"{float(ups_cov) * 100:.1f}%" if isinstance(ups_cov, (int, float)) else "غير معروف"
+    if not ups_verify["ok"]:
+        # لقطة bootstrap لا يجوز عرض تغطيتها أو صفحاتها كأنها مكتملة
+        ups_pages = "غير موثّق"
+        ups_cov_txt = "غير موثّقة"
 
     st.markdown(f"""
 <div class="header-bar">
     <div>
         <h1>📦 مؤشر أداء رخص البناء</h1>
-        <p class="sub">الطلبات القائمة حالياً في نظام التصاريح الموحد (UPS) | آخر سحب مكتمل موثّق: {ups_pull_ts} | الصفحات: {ups_pages} | التغطية: {ups_cov_txt}</p>
+        <p class="sub">إجمالي السجلات: {len(ups_df):,} — النشط فعليًا: {_active_pre:,} — الأرشيف المغلق: {_closed_pre:,} | النطاق الزمني: {ups_year_range}</p>
+        <p class="sub">آخر سحب مكتمل موثّق: {ups_pull_ts} | الصفحات: {ups_pages} | التغطية: {ups_cov_txt}</p>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
         {ups_badge}
@@ -253,17 +274,6 @@ if st.session_state.page == "ups":
                 f"{ups_publish.get('error', 'سبب غير معروف')}"
             )
 
-    import re
-
-    # استخراج السنة الهجرية للتجميع (1448 / 1447 ...)
-    def extract_hijri_year(date_str):
-        m = re.search(r"(\d{3,4})\s*هـ", str(date_str))
-        if m:
-            return "هـ " + m.group(1)
-        return "غير محدد"
-
-    ups_df["السنة الهجرية"] = ups_df["تاريخ الطلب"].apply(extract_hijri_year)
-
     status_labels = {
         "مكتمل": "✅ مكتمل", "استكمال التعديلات": "🔄 استكمال التعديلات",
         "مرفوض": "❌ مرفوض", "قيد العمل - المهندس": "⚙️ قيد العمل - المهندس",
@@ -287,6 +297,9 @@ if st.session_state.page == "ups":
     amend_ups = (ups_df["حالة الطلب"] == "استكمال التعديلات").sum()
     rej_ups = (ups_df["حالة الطلب"] == "مرفوض").sum()
     cancel_ups = (ups_df["حالة الطلب"] == "ملغي").sum()
+    # النشط فعليًا = غير مكتمل وغير مرفوض وغير ملغي (وليس "كل ما لم يكتمل")
+    active_ups = int(ups_core_mod.active_request_mask(ups_df).sum())
+    closed_ups = int(total_ups - active_ups)
 
     # تحقق: بطاقات KPI يجب أن تغطي كل الطلبات
     _kpi_sum = int(done_ups + inprog_ups + pending_ups + amend_ups + rej_ups + cancel_ups)
@@ -296,13 +309,14 @@ if st.session_state.page == "ups":
         st.warning(f"⚠️ مجموع البطاقات {_kpi_sum:,} ≠ الإجمالي {total_ups:,}. حالات غير مصنّفة: {_missing}")
 
     st.markdown(f"""<div class="kpi-grid">
-        <div class="kpi k-total"><div class="kpi-val">{total_ups:,}</div><div class="kpi-lbl">📋 إجمالي الطلبات</div><div class="kpi-sub">نشط: {total_ups - done_ups:,} • أرشيف مكتمل: {done_ups:,}</div><div class="kpi-bar"></div></div>
-        <div class="kpi k-done"><div class="kpi-val">{done_ups:,}</div><div class="kpi-lbl">✅ مكتمل</div><div class="kpi-sub">{round(done_ups/total_ups*100,1) if total_ups else 0}%</div><div class="kpi-bar"></div></div>
-        <div class="kpi k-prog"><div class="kpi-val">{inprog_ups:,}</div><div class="kpi-lbl">⚙️ قيد العمل</div><div class="kpi-sub">{round(inprog_ups/total_ups*100,1) if total_ups else 0}%</div><div class="kpi-bar"></div></div>
-        <div class="kpi k-ret"><div class="kpi-val">{amend_ups:,}</div><div class="kpi-lbl">🔄 استكمال التعديلات</div><div class="kpi-sub">{round(amend_ups/total_ups*100,1) if total_ups else 0}%</div><div class="kpi-bar"></div></div>
-        <div class="kpi k-total"><div class="kpi-val" style="color:#2563eb">{pending_ups:,}</div><div class="kpi-lbl">💳 بانتظار السداد</div><div class="kpi-sub">{round(pending_ups/total_ups*100,1) if total_ups else 0}%</div><div class="kpi-bar" style="background:#2563eb"></div></div>
-        <div class="kpi k-rej"><div class="kpi-val">{rej_ups:,}</div><div class="kpi-lbl">❌ مرفوض</div><div class="kpi-sub">{round(rej_ups/total_ups*100,1) if total_ups else 0}%</div><div class="kpi-bar"></div></div>
-        <div class="kpi k-stop"><div class="kpi-val" style="color:#64748b">{cancel_ups:,}</div><div class="kpi-lbl">⛔ ملغي</div><div class="kpi-sub">{round(cancel_ups/total_ups*100,1) if total_ups else 0}%</div><div class="kpi-bar" style="background:#94a3b8"></div></div>
+        <div class="kpi k-total"><div class="kpi-val">{total_ups:,}</div><div class="kpi-lbl">📋 إجمالي السجلات</div><div class="kpi-sub">يشمل الأرشيف المغلق</div><div class="kpi-bar"></div></div>
+        <div class="kpi k-active"><div class="kpi-val">{active_ups:,}</div><div class="kpi-lbl">🟣 نشط فعليًا</div><div class="kpi-sub">غير مكتمل/مرفوض/ملغي</div><div class="kpi-bar"></div></div>
+        <div class="kpi k-done"><div class="kpi-val">{done_ups:,}</div><div class="kpi-lbl">✅ مكتمل</div><div class="kpi-sub">{round(done_ups/total_ups*100,1) if total_ups else 0}% من الإجمالي</div><div class="kpi-bar"></div></div>
+        <div class="kpi k-prog"><div class="kpi-val">{inprog_ups:,}</div><div class="kpi-lbl">⚙️ قيد العمل</div><div class="kpi-sub">{round(inprog_ups/total_ups*100,1) if total_ups else 0}% من الإجمالي</div><div class="kpi-bar"></div></div>
+        <div class="kpi k-ret"><div class="kpi-val">{amend_ups:,}</div><div class="kpi-lbl">🔄 استكمال التعديلات</div><div class="kpi-sub">{round(amend_ups/total_ups*100,1) if total_ups else 0}% من الإجمالي</div><div class="kpi-bar"></div></div>
+        <div class="kpi k-total"><div class="kpi-val" style="color:#2563eb">{pending_ups:,}</div><div class="kpi-lbl">💳 بانتظار السداد</div><div class="kpi-sub">{round(pending_ups/total_ups*100,1) if total_ups else 0}% من الإجمالي</div><div class="kpi-bar" style="background:#2563eb"></div></div>
+        <div class="kpi k-rej"><div class="kpi-val">{rej_ups:,}</div><div class="kpi-lbl">❌ مرفوض</div><div class="kpi-sub">{round(rej_ups/total_ups*100,1) if total_ups else 0}% من الإجمالي</div><div class="kpi-bar"></div></div>
+        <div class="kpi k-stop"><div class="kpi-val" style="color:#64748b">{cancel_ups:,}</div><div class="kpi-lbl">⛔ ملغي</div><div class="kpi-sub">{round(cancel_ups/total_ups*100,1) if total_ups else 0}% من الإجمالي</div><div class="kpi-bar" style="background:#94a3b8"></div></div>
     </div>""", unsafe_allow_html=True)
 
     # صف مؤشرات ملخص (بمثابة صفحة BLS)
@@ -310,10 +324,10 @@ if st.session_state.page == "ups":
         return round(n / total_ups * 100, 1) if total_ups else 0
 
     st.markdown(f"""<div class="metric-row">
-        <div class="metric-card"><div class="metric-val">{_pct(done_ups)}%</div><div class="metric-lbl">📈 نسبة الإنجاز</div></div>
-        <div class="metric-card"><div class="metric-val">{_pct(inprog_ups)}%</div><div class="metric-lbl">⚙️ نسبة قيد العمل</div></div>
-        <div class="metric-card"><div class="metric-val">{_pct(amend_ups)}%</div><div class="metric-lbl">🔄 نسبة استكمال التعديلات</div></div>
-        <div class="metric-card"><div class="metric-val">{_pct(rej_ups)}%</div><div class="metric-lbl">❌ نسبة المرفوض</div></div>
+        <div class="metric-card"><div class="metric-val">{round(done_ups/closed_ups*100,1) if closed_ups else 0}%</div><div class="metric-lbl">📈 الإنجاز بين المغلقة ({closed_ups:,})</div></div>
+        <div class="metric-card"><div class="metric-val">{_pct(done_ups)}%</div><div class="metric-lbl">✅ المكتمل من إجمالي السجلات</div></div>
+        <div class="metric-card"><div class="metric-val">{_pct(active_ups)}%</div><div class="metric-lbl">🟣 النشط من إجمالي السجلات</div></div>
+        <div class="metric-card"><div class="metric-val">{_pct(rej_ups)}%</div><div class="metric-lbl">❌ المرفوض من إجمالي السجلات</div></div>
     </div>""", unsafe_allow_html=True)
 
     # زر إظهار/إخفاء الفلتر (نفس زر صفحة BLS)
@@ -333,7 +347,12 @@ if st.session_state.page == "ups":
         with fc3:
             flt_area = st.multiselect("الحي", sorted(ups_df["الحي"].unique()), default=None, placeholder="الكل")
         with fc4:
-            flt_year = st.multiselect("السنة الهجرية", sorted(ups_df["السنة الهجرية"].unique()), default=None, placeholder="الكل")
+            _year_opts = sorted(
+                ups_df["السنة الهجرية"].unique(),
+                key=lambda v: 0 if v == "غير محدد" else int(re.sub(r"\D", "", v) or 0),
+                reverse=True,
+            )
+            flt_year = st.multiselect("السنة الهجرية", _year_opts, default=None, placeholder="الكل")
         search_term = st.text_input("🔎 بحث برقم الطلب أو رقم الرخصة أو اسم المستفيد", placeholder="مثال: BLS-LR268184")
     else:
         flt_status, flt_service, flt_area, flt_year, search_term = [], [], [], [], ""
@@ -352,12 +371,12 @@ if st.session_state.page == "ups":
 
     # أزرار تصفية سريعة حسب الحالة (بمثابة صفحة BLS)
     ups_stage_labels = {
-        "الكل": "📋 الكل", "مكتمل": "✅ مكتمل", "قيد العمل": "⚙️ قيد العمل",
+        "الكل": "📋 الكل", "نشط": "🟣 نشط", "مكتمل": "✅ مكتمل", "قيد العمل": "⚙️ قيد العمل",
         "استكمال التعديلات": "🔄 استكمال التعديلات", "مرفوض": "❌ مرفوض",
         "بانتظار السداد": "💳 بانتظار السداد", "ملغي": "⛔ ملغي",
     }
     ups_stage_counts = {
-        "الكل": total_ups, "مكتمل": done_ups, "قيد العمل": inprog_ups,
+        "الكل": total_ups, "نشط": active_ups, "مكتمل": done_ups, "قيد العمل": inprog_ups,
         "استكمال التعديلات": amend_ups, "مرفوض": rej_ups,
         "بانتظار السداد": pending_ups, "ملغي": cancel_ups,
     }
@@ -372,7 +391,9 @@ if st.session_state.page == "ups":
                 st.rerun()
 
     if st.session_state.ups_stage != "الكل":
-        if st.session_state.ups_stage == "قيد العمل":
+        if st.session_state.ups_stage == "نشط":
+            ups_filtered = ups_filtered[ups_core_mod.active_request_mask(ups_filtered)]
+        elif st.session_state.ups_stage == "قيد العمل":
             ups_filtered = ups_filtered[inprog_mask(ups_filtered)]
         else:
             ups_filtered = ups_filtered[ups_filtered["حالة الطلب"] == st.session_state.ups_stage]
